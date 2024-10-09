@@ -14,7 +14,7 @@ ts_file_suffix = "_timestamps.npy"
 data_file_suffix = ".pldata"
 
 
-def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experiment_log: pathlib.Path | None = None):
+def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experiment_log: pathlib.Path | None = None, filetype: str = "csv"):
     assert folder_path.exists()
     if experiment_log is not None:
         sub_folders = get_subfolders_from_log(folder_path, experiment_log)
@@ -23,8 +23,12 @@ def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experime
         sub_folders = (subdir for subdir in folder_path.iterdir() if subdir.is_dir())
     if not output_path.exists():
         output_path.mkdir()
-    for sub_folder in sub_folders:
-        export_data(sub_folder, output_path, ("pupil",))
+    topics = ("pupil",)
+    if filetype == "csv":
+        for sub_folder in sub_folders:
+            export_data_csv(sub_folder, output_path, ("pupil",))
+    elif filetype == "hdf":
+        export_hdf()
 
 
 def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.Path) -> Iterator[pathlib.Path]:
@@ -38,7 +42,7 @@ def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.P
             print(f"Recording folder {subfolder_path} not found.")
 
 
-def export_data(
+def export_data_csv(
     folder_path: pathlib.Path, output_path: pathlib.Path, data_topics: tuple[str]
 ):
     """Export raw Pupil pldata and npy files to CSV"""
@@ -56,15 +60,9 @@ def export_data(
             writer.writerows(flattened_data)
 
 
-def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, data_topics: tuple[str]):
+def export_hdf():
     """Export raw Pupil pldata and npy files to HDF5 format"""
-    world_ts_data = np.load(folder_path / "world_timestamps.npy")
-    export_file = output_path / f"participant_X_pupil_tracking_data.hdf5"
-    with h5py.File(export_file, 'a') as hdf_root:
-        for topic in data_topics:
-            data_file = folder_path / f"{topic}{data_file_suffix}"
-            data = extract_data(data_file, t_start=world_ts_data[0], method="3d")
-            timestamped_data = match_timestamps(data, world_ts_data)
+    pass
 
 
 def extract_data(
