@@ -9,6 +9,7 @@ class Args:
     recording_path: pathlib.Path
     output_path: pathlib.Path
     log_file_path: pathlib.Path
+    file_type: str
     annotations: bool
 
 
@@ -30,6 +31,9 @@ def get_args() -> Args:
         help="Log file from experiment describing which recordings to export. If not supplied, the entire folder of recordings will be exported."
     )
     parser.add_argument(
+        "--file_type", default="csv", help="Export file type. Can be either 'csv' or 'hdf'"
+    )
+    parser.add_argument(
         "-a",
         "--annotations",
         action="store_true",
@@ -40,4 +44,4 @@ def get_args() -> Args:
 
 if __name__ == "__main__":
     args = get_args()
-    export.export_folder(args.recording_path, args.output_path, args.log_file_path)
+    export.export_folder(args.recording_path, args.output_path, args.log_file_path, args.file_type)
