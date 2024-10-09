@@ -10,6 +10,7 @@ class Args:
     output_path: pathlib.Path
     log_file_path: pathlib.Path
     file_type: str
+    demographics_path: pathlib.Path
     annotations: bool
 
 
@@ -34,6 +35,9 @@ def get_args() -> Args:
         "--file_type", default="csv", help="Export file type. Can be either 'csv' or 'hdf'"
     )
     parser.add_argument(
+        "--demographics_path", type=pathlib.Path, default=None, 
+        help="Log file from the experiment describing the participant demographics.")
+    parser.add_argument(
         "-a",
         "--annotations",
         action="store_true",
@@ -44,4 +48,4 @@ def get_args() -> Args:
 
 if __name__ == "__main__":
     args = get_args()
-    export.export_folder(args.recording_path, args.output_path, args.log_file_path, args.file_type)
+    export.export_folder(args.recording_path, args.output_path, args.log_file_path, args.file_type, args.demographics_path)

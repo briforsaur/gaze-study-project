@@ -14,7 +14,7 @@ ts_file_suffix = "_timestamps.npy"
 data_file_suffix = ".pldata"
 
 
-def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experiment_log: pathlib.Path | None = None, filetype: str = "csv"):
+def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experiment_log: pathlib.Path | None = None, filetype: str = "csv", demographics_log: pathlib.Path | None = None):
     assert folder_path.exists()
     if experiment_log is not None:
         sub_folders = get_subfolders_from_log(folder_path, experiment_log)
@@ -28,7 +28,8 @@ def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experime
         for sub_folder in sub_folders:
             export_data_csv(sub_folder, output_path, topics)
     elif filetype == "hdf":
-        export_hdf(folder_path, output_path, sub_folders)
+        metadata = get_metadata(experiment_log, demographics_log)
+        export_hdf(folder_path, output_path, sub_folders, metadata)
 
 
 def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.Path) -> Iterator[pathlib.Path]:
@@ -60,15 +61,16 @@ def export_data_csv(
             writer.writerows(flattened_data)
 
 
-def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path]):
+def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path], metadata: dict):
     """Export raw Pupil pldata and npy files to HDF5 format"""
     topic = "pupil"
     export_file = output_path.parent / f"{folder_path.name}.hdf5"
     with h5py.File(export_file, 'w') as f_root:
+        f_root.attrs.update(metadata["header"])
         trials_group = f_root.create_group("trials")
         for trial_num, sub_folder in enumerate(sub_folders):
-            
             trial_group = trials_group.create_group("{:0=3}".format(trial_num))
+            trial_group.attrs.update(metadata["trial_record"][trial_num])
             world_ts_data = np.load(sub_folder / "world_timestamps.npy")
             data_file = sub_folder / f"{topic}{data_file_suffix}"
             data = extract_data(data_file, world_ts_data[0], method="3d")
@@ -82,7 +84,14 @@ def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders
                 grouped_data[dataset_name].append(data_entry)
             for dataset_name, dataset_values in grouped_data.items():
                 dataset_values = pupildata_to_numpy(dataset_values)
-                trial_group.create_dataset(dataset_name, data=dataset_values)
+                dataset = trial_group.create_dataset(dataset_name, data=dataset_values)
+                name_parts = dataset_name.split("_")
+                dataset_metadata = {
+                    "topic": name_parts[0],
+                    "eye id": name_parts[1][-1],
+                    "method": "pye3d 0.3.0 real-time",
+                }
+                dataset.attrs.update(dataset_metadata)
 
 
 def extract_data(
@@ -175,3 +184,35 @@ def pupildata_to_numpy(pupil_data: list) -> np.ndarray:
     for data_entry in pupil_data:
         data.append(nested_dict_to_tuple(data_entry))
     return np.array(data, dtype=pupil_datatype)
+
+
+def get_metadata(experiment_log: pathlib.Path, demographics_log: pathlib.Path) -> dict:
+    experiment_metadata: dict[str, dict] = load_json_log(experiment_log)
+    participant_id = experiment_metadata["header"]["participant_id"]
+    demographic_metadata = load_json_log(demographics_log)
+    demographic_metadata = demographic_metadata[participant_id]
+    experiment_metadata["header"].update(demographic_metadata)
+    session_datetime = experiment_metadata["header"]["date"]
+    session_datetime = fix_datetime_string(session_datetime)
+    experiment_metadata["header"]["date"] = session_datetime
+    return experiment_metadata
+
+
+def load_json_log(log_file_path: pathlib.Path) -> dict:
+    with open(log_file_path, "r") as f:
+        log_data = json.load(f)
+    return log_data
+
+
+def fix_datetime_string(dt_str: str) -> str:
+    """Fixes datetime strings with a typo to match ISO format
+    
+    The datetime strings recorded in the experiment had a typo in the separator between
+    the date and the time such that they do not match ISO format.
+    Correct ISO format: YYYY-MM-DDTHH:MM:SS
+    Typo:               YYYY-MM-DD-THH:MM:SS
+
+    This function fixes the typo and returns a properly formatted ISO datetime string.
+    """
+    dt_str_parts = dt_str.split("-")
+    return "-".join(dt_str_parts[0:-1]) + dt_str_parts[-1]
