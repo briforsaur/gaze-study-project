@@ -3,10 +3,10 @@
 import msgpack as mpk
 import numpy as np
 import pathlib
-from collections.abc import Iterator
+from collections.abc import Iterator, Container
 import csv
 import json
-from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError
+from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError, pupil_datatype
 import h5py
 
 
@@ -26,9 +26,9 @@ def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experime
     topics = ("pupil",)
     if filetype == "csv":
         for sub_folder in sub_folders:
-            export_data_csv(sub_folder, output_path, ("pupil",))
+            export_data_csv(sub_folder, output_path, topics)
     elif filetype == "hdf":
-        export_hdf()
+        export_hdf(folder_path, output_path, sub_folders)
 
 
 def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.Path) -> Iterator[pathlib.Path]:
@@ -60,9 +60,29 @@ def export_data_csv(
             writer.writerows(flattened_data)
 
 
-def export_hdf():
+def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path]):
     """Export raw Pupil pldata and npy files to HDF5 format"""
-    pass
+    topic = "pupil"
+    export_file = output_path.parent / f"{folder_path.name}.hdf5"
+    with h5py.File(export_file, 'w') as f_root:
+        trials_group = f_root.create_group("trials")
+        for trial_num, sub_folder in enumerate(sub_folders):
+            
+            trial_group = trials_group.create_group("{:0=3}".format(trial_num))
+            world_ts_data = np.load(sub_folder / "world_timestamps.npy")
+            data_file = sub_folder / f"{topic}{data_file_suffix}"
+            data = extract_data(data_file, world_ts_data[0], method="3d")
+            timestamped_data = match_timestamps(data, world_ts_data)
+            grouped_data = {}
+            for data_entry in timestamped_data:
+                method = data_entry["topic"].split(".")[-1]
+                dataset_name = f"{topic}_eye{data_entry['id']}_{method}"
+                if dataset_name not in grouped_data:
+                    grouped_data[dataset_name] = []
+                grouped_data[dataset_name].append(data_entry)
+            for dataset_name, dataset_values in grouped_data.items():
+                dataset_values = pupildata_to_numpy(dataset_values)
+                trial_group.create_dataset(dataset_name, data=dataset_values)
 
 
 def extract_data(
@@ -135,3 +155,23 @@ def make_flat(key: str, value, fieldmap: dict) -> dict:
                 output.update(make_flat(subfieldkey, value[subfieldkey], field_mapping))
     return output
 
+
+def nested_dict_to_tuple(nested_dict: dict, datatype: np.dtype = pupil_datatype):
+    data_list = []
+    for field in datatype.names:
+        if not isinstance(nested_dict[field], Container):
+            data_list.append(nested_dict[field])
+        elif isinstance(nested_dict[field], list):
+            data_list.append(tuple(nested_dict[field]))
+        elif isinstance(nested_dict[field], dict):
+            data_list.append(
+                nested_dict_to_tuple(nested_dict[field], datatype.fields[field][0])
+            )
+    return tuple(data_list)
+
+
+def pupildata_to_numpy(pupil_data: list) -> np.ndarray:
+    data = []
+    for data_entry in pupil_data:
+        data.append(nested_dict_to_tuple(data_entry))
+    return np.array(data, dtype=pupil_datatype)
