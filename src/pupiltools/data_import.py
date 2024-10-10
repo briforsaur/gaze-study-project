@@ -90,10 +90,6 @@ class GazeDataFile:
             data = np.empty(shape=dataset.shape, dtype=pupil_datatype)
             dataset.read_direct(data)
         else:
-            data = np.empty(
-                shape=(dataset.shape[0], len(variables)),
-                dtype=pupil_datatype[variables],
-            )
             data = dataset.fields(variables)[:]
         return data
     
