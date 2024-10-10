@@ -7,6 +7,7 @@ from collections.abc import Iterator, Container
 import csv
 import json
 from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError, pupil_datatype
+from .utilities import fix_datetime_string, make_digit_str
 import h5py
 
 
@@ -69,7 +70,7 @@ def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders
         f_root.attrs.update(metadata["header"])
         trials_group = f_root.create_group("trials")
         for trial_num, sub_folder in enumerate(sub_folders):
-            trial_group = trials_group.create_group("{:0=3}".format(trial_num))
+            trial_group = trials_group.create_group(make_digit_str(trial_num))
             trial_group.attrs.update(metadata["trial_record"][trial_num])
             world_ts_data = np.load(sub_folder / "world_timestamps.npy")
             data_file = sub_folder / f"{topic}{data_file_suffix}"
@@ -202,17 +203,3 @@ def load_json_log(log_file_path: pathlib.Path) -> dict:
     with open(log_file_path, "r") as f:
         log_data = json.load(f)
     return log_data
-
-
-def fix_datetime_string(dt_str: str) -> str:
-    """Fixes datetime strings with a typo to match ISO format
-    
-    The datetime strings recorded in the experiment had a typo in the separator between
-    the date and the time such that they do not match ISO format.
-    Correct ISO format: YYYY-MM-DDTHH:MM:SS
-    Typo:               YYYY-MM-DD-THH:MM:SS
-
-    This function fixes the typo and returns a properly formatted ISO datetime string.
-    """
-    dt_str_parts = dt_str.split("-")
-    return "-".join(dt_str_parts[0:-1]) + dt_str_parts[-1]
