@@ -34,7 +34,7 @@ class GazeDataFile:
             Path or file-like object to the hdf5 file
         mode: str
             File opening mode. Only supports modes supported by h5py's File object:
-            
+
             r   Readonly, file must exist (default)
             r+  Read/write, file must exist
             w   Create file, truncate if exists
@@ -61,8 +61,6 @@ class GazeDataFile:
 
         Parameters
         ----------
-        file: str | bytes | pathlike
-            Path or file-like object to the hdf5 file
         group: str, default="trials"
             The data group, can be either "trials" or [TODO] "calibrations".
         trial: int, default=0
@@ -84,9 +82,7 @@ class GazeDataFile:
         numpy.ndarray
             A structured array containing the requested variables within the dataset. 
         """
-        trial_str = make_digit_str(trial, width=3)
-        dataset_name = "_".join([topic, f"eye{eye}", method])
-        datapath = "/".join([group, trial_str, dataset_name])
+        datapath = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
         dataset: h5py.Dataset = self.hdf_root[datapath]
         if isinstance(variables, str) and variables == "all":
             # Preallocate an array and read the dataset in directly to avoid an
@@ -111,6 +107,50 @@ class GazeDataFile:
     def __exit__(self, exc_type, exc_value, traceback):
         # Make sure all cleanup is done when exiting the "with" statement
         self.close()
+
+
+def get_path(
+    group: str = "",
+    trial: int = -1,
+    topic: str = "",
+    eye: int = -1,
+    method: str = ""
+) -> str:
+    """Generate an internal HDF path to the desired group or dataset
+    
+    All parameters are empty or invalid by default. If left as defaults, they will
+    not be included in the path.
+
+    Examples:
+
+    >>> get_path()
+    '/'
+    >>> get_path("/")
+    '/'
+    >>> get_path("root")
+    '/'
+    >>> get_path(group="trials")
+    '/trials'
+    >>> get_path(group="trials", trial=0)
+    '/trials/000'
+    >>> get_path(group="trials", trial=0, topic="pupil", eye=0, method="3d")
+    '/trials/000/pupil_eye0_3d'
+    """
+    if trial >= 0:
+        trial_str = make_digit_str(trial, width=3)
+    else:
+        trial_str = ""
+    if topic and method and (eye in [0, 1]):
+        dataset_name = "_".join([topic, f"eye{eye}", method])
+    else:
+        dataset_name = ""
+    # Creating a list of non-empty path members
+    pathlist = [var for var in [group, trial_str, dataset_name] if var]
+    if group in ["root", "/"]:
+        path = "/"
+    else:
+        path = "/" + "/".join(pathlist)
+    return path
 
 
 if __name__ == "__main__":
