@@ -97,6 +97,19 @@ class GazeDataFile:
             data = dataset.fields(variables)[:]
         return data
     
+    def get_attributes(
+        self, 
+        group: str = "",
+        trial: int = -1,
+        topic: str = "",
+        eye: int = -1,
+        method: str = ""
+    ) -> dict:
+        """Get the attributes of a member of the HDF File"""
+        path = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
+        # Need to use dict() to avoid shallow copy that is left dangling on file close
+        return dict(self.hdf_root[path].attrs)
+    
     def close(self):
         self.hdf_root.close()
 
@@ -157,9 +170,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data_file_path", type=Path, help="Path to the HDF5 data file")
     args = parser.parse_args()
+    test_set = {"topic": "pupil", "eye": 0, "method": "3d"}
     with GazeDataFile(args.data_file_path, mode="r") as datafile:
         data = datafile.get_data(
             variables=["timestamp", "world_index", "diameter_3d"]
         )
+        root_attrs = datafile.get_attributes()
+        trial_attrs = datafile.get_attributes(group="trials", trial=0)
+        data_attrs = datafile.get_attributes(group="trials", trial=0, **test_set)
     print(data[0])
     print(data.dtype)
