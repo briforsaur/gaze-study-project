@@ -3,6 +3,8 @@ import pupiltools.data_import as di
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from numpy.typing import NDArray
 import numpy as np
 from pathlib import Path
 
@@ -38,18 +40,18 @@ if __name__ == "__main__":
     axs[0].set_title("Action")
     axs[0].set_xlabel('Time [s]')
     axs[0].set_ylabel('Diameter [mm]')
-    axs[0].set_ylim([0, 1.3])
+    axs[0].set_ylim([-0.3, 0.3])
     axs[1].set_title("Observation")
     axs[1].set_xlabel('Time [s]')
     axs[1].set_ylabel('Diameter [mm]')
-    axs[1].set_ylim([0, 1.3])
+    axs[1].set_ylim([-0.3, 0.3])
     eye = 0
     for axi, sub_data in enumerate(participant_data.values()):
         for trial in range(60):
             t = sub_data[eye][trial]["timestamp"]
             t = t - t[0]
             d = sub_data[eye][trial]["diameter_3d"]
-            d = d / np.mean(d[np.where(t<1)])
+            d = d / np.mean(d[np.where(t<1)]) - 1
             axs[axi].plot(t, d)
             fig.canvas.draw()
     plt.show()
