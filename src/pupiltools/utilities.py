@@ -1,3 +1,6 @@
+import numpy as np
+from typing import Generic, TypeVar
+from matplotlib.axes import Axes
 
 
 def fix_datetime_string(dt_str: str) -> str:
@@ -27,6 +30,13 @@ def make_digit_str(num: int, width: int = 3) -> str:
     """
     return "{:0={width}}".format(num, width=width)
 
+
+# Helper class used as a type for matplotlib arrays of Axes
+# Based on https://stackoverflow.com/a/74197401
+T = TypeVar('T')
+class ObjArray(np.ndarray, Generic[T]):
+    def __getitem__(self, key) -> T:
+        return super().__getitem__(key)
 
 if __name__=="__main__":
     typo_str = "2024-09-01-T12:00:00"

@@ -1,10 +1,10 @@
 import pupiltools.data_import as di
+from pupiltools.utilities import ObjArray
 
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
-from numpy.typing import NDArray
 import numpy as np
 from pathlib import Path
 
@@ -36,6 +36,7 @@ if __name__ == "__main__":
                 data = datafile.get_data(trial=i_trial, eye=eye, variables=variables, **hdf_path_info)
                 attr = datafile.get_attributes(trial=i_trial, **hdf_path_info)
                 participant_data[attr['task']][eye].append(data)
+    axs: ObjArray[Axes]
     fig, axs = plt.subplots(2,1)
     axs[0].set_title("Action")
     axs[0].set_xlabel('Time [s]')
