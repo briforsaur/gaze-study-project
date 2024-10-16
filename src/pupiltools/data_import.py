@@ -48,7 +48,7 @@ class GazeDataFile:
             a   Read/write if exists, create otherwise
         """
         self.file = file
-        self.hdf_root = h5py.File(file, mode='r')
+        self.hdf_root = h5py.File(file, mode=mode)
         self.n_trials = len(self.hdf_root["trials"].keys())
 
     def get_data(
