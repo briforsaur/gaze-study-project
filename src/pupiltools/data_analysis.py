@@ -12,6 +12,22 @@ def calc_deltas(array: np.ndarray) -> np.ndarray:
 
 
 def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray]:
+    """Calculates the time differences between all samples in a dataset
+
+    Parameters
+    ----------
+    participant_data: list[np.ndarray]
+        A list of NumPy ndarrays, where each array is the time vector for a specific
+        trial and eye dataset.
+    
+    Returns
+    -------
+    list[np.ndarray]
+        A list of NumPy ndarrays, where each item in the list corresponds to a
+        trial number and eye number (0 is trial 0, eye 0, 1 is trial 0, eye 1,
+        2 is trial 1, eye 0, etc.). Each array is the time difference between
+        adjacent samples for that trial and eye.
+    """
     t_deltas = []
     trial: TrialDataType
     for trial in participant_data:
@@ -22,7 +38,23 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
     return t_deltas
 
 
-def get_time_delta_stats(t_deltas: list[np.ndarray]) -> npt.NDArray[np.float64]:
+def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
+    """Calculates basic statistics for the time differences between samples
+    
+    Parameters
+    ----------
+    t_deltas: list[np.ndarray]
+        A list of NumPy ndarrays, where each item in the list corresponds to a
+        trial number and eye number (0 is trial 0, eye 0, 1 is trial 0, eye 1,
+        2 is trial 1, eye 0, etc.). Each array is the time difference between
+        adjacent samples for that trial and eye.
+
+    Returns
+    -------
+    dict[str, np.float64]
+    A dictionary of statistics of the data, including the mean, min, 5th 
+    percentile, median, 95th percentile, 99th percentile, and maximum values.
+    """
     t_deltas = np.concatenate(t_deltas)
     percentiles = [5, 50, 95, 99]
     dt_percentiles = np.percentile(t_deltas, percentiles)
