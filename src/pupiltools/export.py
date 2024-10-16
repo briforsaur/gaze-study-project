@@ -65,7 +65,7 @@ def export_data_csv(
 def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path], metadata: dict):
     """Export raw Pupil pldata and npy files to HDF5 format"""
     topic = "pupil"
-    export_file = output_path.parent / f"{folder_path.name}.hdf5"
+    export_file = output_path / f"{folder_path.name}.hdf5"
     with h5py.File(export_file, 'w') as f_root:
         f_root.attrs.update(metadata["header"])
         trials_group = f_root.create_group("trials")
