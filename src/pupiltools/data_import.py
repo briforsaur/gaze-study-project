@@ -4,13 +4,8 @@ import numpy as np
 import os
 from pathlib import Path
 from typing import TypeAlias
-from .data_structures import pupil_datatype
+from .aliases import pupil_datatype, AttributesType, RawParticipantDataType
 from .utilities import make_digit_str
-
-
-AttributesType: TypeAlias = dict[str, str | np.float64 | np.int64]
-TrialDataType: TypeAlias = dict[str, AttributesType | list[np.ndarray]]
-ParticipantDataType: TypeAlias = list[TrialDataType]
 
 
 class GazeDataFile:
@@ -168,7 +163,7 @@ def get_path(
     return path
 
 
-def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> ParticipantDataType:
+def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> RawParticipantDataType:
     """Get raw participant data from an HDF File"""
     hdf_path_info = {"group": group, "topic": topic, "method": method}
     participant_data = []
