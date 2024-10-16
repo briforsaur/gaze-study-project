@@ -28,14 +28,7 @@ if __name__ == "__main__":
     eyes = (0, 1)
     file_path = args.data_path / f"{args.participant_id}.hdf5"
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
-    participant_data = []
-    with di.GazeDataFile(file_path, mode='r') as datafile:
-        for i_trial in range(datafile.n_trials):
-            attr = datafile.get_attributes(trial=i_trial, **hdf_path_info)
-            participant_data.append({"attributes": attr, "data":[]})
-            for eye in eyes:
-                data = datafile.get_data(trial=i_trial, eye=eye, variables=variables, **hdf_path_info)
-                participant_data[i_trial]["data"].append(data)
+    participant_data = di.get_raw_participant_data(file_path, variables=variables, **hdf_path_info)
     fig, axs = plt.subplots(2,1)
     tasks = ("action", "observation")
     plot_topics: dict[str, mpl_axes] = dict(zip(tasks, axs))

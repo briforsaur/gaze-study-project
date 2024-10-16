@@ -3,8 +3,14 @@ import h5py
 import numpy as np
 import os
 from pathlib import Path
+from typing import TypeAlias
 from .data_structures import pupil_datatype
 from .utilities import make_digit_str
+
+
+AttributesType: TypeAlias = dict[str, str | np.float64 | np.int64]
+TrialDataType: TypeAlias = dict[str, AttributesType | list[np.ndarray]]
+ParticipantDataType: TypeAlias = list[TrialDataType]
 
 
 class GazeDataFile:
@@ -100,7 +106,7 @@ class GazeDataFile:
         topic: str = "",
         eye: int = -1,
         method: str = ""
-    ) -> dict:
+    ) -> AttributesType:
         """Get the attributes of a member of the HDF File"""
         path = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
         # Need to use dict() to avoid shallow copy that is left dangling on file close
@@ -160,6 +166,20 @@ def get_path(
     else:
         path = "/" + "/".join(pathlist)
     return path
+
+
+def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> ParticipantDataType:
+    """Get raw participant data from an HDF File"""
+    hdf_path_info = {"group": group, "topic": topic, "method": method}
+    participant_data = []
+    with GazeDataFile(file, mode='r') as datafile:
+        for i_trial in range(datafile.n_trials):
+            attr = datafile.get_attributes(trial=i_trial, **hdf_path_info)
+            data = []
+            for eye in (0, 1):
+                data.append(datafile.get_data(trial=i_trial, eye=eye, variables=variables, **hdf_path_info))
+            participant_data.append({"attributes": attr, "data": data})
+    return participant_data
 
 
 if __name__ == "__main__":
