@@ -70,6 +70,19 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
     return dt_stats
 
 
+def resample_data(participant_data: RawParticipantDataType, dt: float):
+    for trial_data in participant_data:
+        t_start = min([trial_data["data"][eye]["timestamp"].min() for eye in (0,1)])
+        t_end = min([trial_data["data"][eye]["timestamp"].max() for eye in (0,1)])
+        t_stop = round((t_end - t_start)/dt)*dt
+        t_array = np.arange(stop=t_stop, step=dt)
+        for eye_data in trial_data["data"]:
+            t_old = eye_data["timestamp"] - t_start
+            for t1, t2 in zip(t_array[:-1], t_array[1:]):
+                index = np.where(t_old >= t1 and t_old < t2)
+                
+
+
 if __name__=="__main__":
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)
