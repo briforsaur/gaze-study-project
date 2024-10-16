@@ -29,3 +29,14 @@ def plot_raw_pupil_diameter_comparison(participant_data: RawParticipantDataType)
             task: str = trial_data["attributes"]["task"]
             plot_topics[task].plot(t, d)
     return fig
+
+
+def plot_dt_histogram(time_deltas: list[np.ndarray]) -> mpl_fig:
+    dt_array = np.concatenate(time_deltas)
+    fig, ax = plt.subplots()
+    fig.suptitle("Probability Mass Function of Time Between Samples")
+    weights = np.ones_like(dt_array)/dt_array.size
+    ax.hist(dt_array, weights=weights)
+    ax.set_xlabel("Time Between Samples [s]")
+    ax.set_ylabel("Proportion of Samples")
+    return fig
