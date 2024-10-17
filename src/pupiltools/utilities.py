@@ -1,6 +1,9 @@
 import numpy as np
 from typing import Generic, TypeVar
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure as mpl_fig
+from datetime import date
+from pathlib import Path
 
 
 def fix_datetime_string(dt_str: str) -> str:
@@ -29,6 +32,15 @@ def make_digit_str(num: int, width: int = 3) -> str:
     '0012'
     """
     return "{:0={width}}".format(num, width=width)
+
+
+def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | list[str], verbose = False):
+    datestr = date.today().isoformat()
+    for format in formats:
+        full_path = fig_path / f"{datestr}_{figname}.{format}"
+        fig.savefig(full_path)
+        if verbose:
+            print(f"Saved figure: {full_path}")
 
 
 # Helper class used as a type for matplotlib arrays of Axes

@@ -1,6 +1,7 @@
 import pupiltools.data_import as d_import
 import pupiltools.data_plotting as d_plot
 import pupiltools.data_analysis as da
+from pupiltools.utilities import save_figure
 
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -12,8 +13,8 @@ from pathlib import Path
 class Args:
     participant_id: str
     data_path: Path
-    T_resample: float
-    td_analysis: bool
+    fig_path: Path
+    show_plot: bool
 
 
 def time_delta_analysis(participant_data):
@@ -38,10 +39,10 @@ def get_args() -> Args:
         "data_path", type=Path, help="Path to directory containing the HDF files."
     )
     parser.add_argument(
-        "--T_resample", type=float, help="Sample time interval to create from resample."
+        "--fig_path", type=Path, help="Path to store output figures."
     )
     parser.add_argument(
-        "--td_analysis", action="store_true", help="Perform time delta analysis"
+        "--show_plot", action="store_true", help="Show result in interactive window"
     )
     args = parser.parse_args()
     return Args(**vars(args))
@@ -49,7 +50,7 @@ def get_args() -> Args:
 
 if __name__ == "__main__":
     args = get_args()
-    variables = ("timestamp", "diameter_3d", "confidence", "sphere")
+    variables = ("timestamp", "diameter_3d")
     eyes = (0, 1)
     file_path = args.data_path / f"{args.participant_id}.hdf5"
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
@@ -57,13 +58,9 @@ if __name__ == "__main__":
         file_path, variables=variables, **hdf_path_info
     )
     fig = d_plot.plot_raw_pupil_diameter_comparison(participant_data)
-    if args.td_analysis:
-        td_fig = time_delta_analysis(participant_data)
-    resampled_data = da.resample_data(participant_data, args.T_resample)
-    resample_fig = d_plot.resample_comparison(
-        participant_data[0]["data"][0],
-        resampled_data[0]["data"][:,0],
-        "diameter_3d",
-        "Diameter [mm]"
-    )
-    plt.show()
+    td_fig = time_delta_analysis(participant_data)
+    if args.fig_path is not None:
+        figname = f"{args.participant_id}_time_deltas"
+        save_figure(td_fig, args.fig_path, figname, ("png", "svg"))
+    if args.show_plot:
+        plt.show()
