@@ -1,8 +1,9 @@
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes as mpl_axes
 from matplotlib.figure import Figure as mpl_fig, SubFigure as mpl_subfig
+from numpy import typing as npt
 import numpy as np
-from .aliases import RawParticipantDataType
+from .aliases import RawParticipantDataType, pupil_datatype
 
 
 def plot_raw_pupil_diameter_comparison(participant_data: RawParticipantDataType) -> mpl_fig:
@@ -28,6 +29,29 @@ def plot_raw_pupil_diameter_comparison(participant_data: RawParticipantDataType)
             d = d / np.mean(d[np.where(t<1)]) - 1
             task: str = trial_data["attributes"]["task"]
             plot_topics[task].plot(t, d)
+    return fig
+
+
+def resample_comparison(old_data: np.ndarray, rs_data: np.ndarray, variable: str, ylabel: str, title: str = "") -> mpl_fig:
+    if not title:
+        dt = rs_data["timestamp"][1]
+        title = f"Comparison of Data After Resampling at {1/dt:0.1f} Hz"
+    variables = (variable, "confidence")
+    ylabels = (ylabel, "Confidence")
+    labels = ("Raw", "Resampled")
+    t_series = (old_data["timestamp"] - old_data["timestamp"][0], rs_data["timestamp"])
+    d_series = (old_data, rs_data)
+    fig = plt.figure(figsize=(10,8))
+    axs = fig.subplots(2, 1)
+    fig.suptitle(title)
+    ax: mpl_axes
+    for ax, var, y_lbl in zip(axs, variables, ylabels):
+        for t, d, lbl in zip(t_series, d_series, labels):
+            ax.plot(t, d[var], label=lbl)
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel(y_lbl)
+        ax.legend()
+    ax.set_ylim(0.6, 1.1)
     return fig
 
 
