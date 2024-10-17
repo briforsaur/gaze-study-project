@@ -6,7 +6,7 @@ from .aliases import RawParticipantDataType, TrialDataType
 
 def calc_deltas(array: np.ndarray) -> np.ndarray:
     """Calculates the differences between adjacent values in an array
-    
+
     For an input array of length N, the function returns an N-1 array
     of the difference between elements n+1 and n, from n = 0 to N-2"""
     return array[1:] - array[:-1]
@@ -20,7 +20,7 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
     participant_data: list[np.ndarray]
         A list of NumPy ndarrays, where each array is the time vector for a specific
         trial and eye dataset.
-    
+
     Returns
     -------
     list[np.ndarray]
@@ -32,7 +32,7 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
     t_deltas = []
     trial: TrialDataType
     for trial in participant_data:
-        for eye in (0,1):
+        for eye in (0, 1):
             t = trial["data"][eye]["timestamp"]
             dt = calc_deltas(t)
             t_deltas.append(dt)
@@ -41,7 +41,7 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
 
 def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
     """Calculates basic statistics for the time differences between samples
-    
+
     Parameters
     ----------
     t_deltas: list[np.ndarray]
@@ -53,7 +53,7 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
     Returns
     -------
     dict[str, np.float64]
-    A dictionary of statistics of the data, including the mean, min, 5th 
+    A dictionary of statistics of the data, including the mean, min, 5th
     percentile, median, 95th percentile, 99th percentile, and maximum values.
     """
     t_deltas = np.concatenate(t_deltas)
@@ -66,71 +66,113 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
         "median": dt_percentiles[1],
         "95th percentile": dt_percentiles[2],
         "99th percentile": dt_percentiles[3],
-        "max": dt_percentiles.max()
+        "max": dt_percentiles.max(),
     }
     return dt_stats
 
 
 def resample_data(participant_data: RawParticipantDataType, dt: float):
-    """Resample all datasets for a list of participant"""
+    """Resample all datasets for a list of participant data"""
     resampled_data = []
     for trial_data in participant_data:
-        t_start = min([trial_data["data"][eye]["timestamp"].min() for eye in (0,1)])
-        t_end = min([trial_data["data"][eye]["timestamp"].max() for eye in (0,1)])
-        t_stop = round((t_end - t_start)/dt)*dt
-        t_array: npt.NDArray[np.float64] = np.arange(stop=t_stop, step=dt, dtype=np.float64)
-        resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype)
-        for n_eye, eye_data in enumerate(trial_data["data"]):
-            t_old = eye_data["timestamp"] - t_start
-            # Computing weights for a weighted average based on confidence
-            weight_matrix = np.zeros((t_array.size, t_old.size), dtype=np.float64)
-            conf_array = np.zeros_like(t_array)
-            for i, t in enumerate(t_array):
-                if t < dt:
-                    # The first time value does not have any data before it, so use 
-                    # the initial condition
-                    index = np.full_like(t_old, False, dtype=np.bool)
-                    index[0] = True
-                else:
-                    elements_in_time_interval = np.logical_and(t_old >= t-dt, t_old < t)
-                    # Check if any values were found in the time interval, falling back 
-                    # to the previous index value if not (effectively a zero-order hold)
-                    if np.any(elements_in_time_interval):
-                        index = elements_in_time_interval
-                weight_row = eye_data["confidence"]*index
-                # The confidence values should be averaged, not weighted averaged
-                conf_array[i] = weight_row.mean(where=index)
-                weight_sum = weight_row.sum()
-                # Checking the sum of weights is greater than 0 before division. The sum 
-                # could be zero if the confidence values are all zero.
-                if weight_sum > 0.001:
-                    weight_matrix[i,:] = weight_row/weight_sum
-                else:
-                    weight_matrix[i,:] = index
-            # Need to convert the structured array to an unstructured array for matrix 
-            # multiplication
-            unstructured_data = rfn.structured_to_unstructured(eye_data)
-            unstruct_resampled_data = weight_matrix @ unstructured_data
-            resampled_array[:,n_eye] = rfn.unstructured_to_structured(unstruct_resampled_data, dtype=eye_data.dtype)
-            # Replace weighted average time & confidence with correct time & confidence
-            resampled_array[:,n_eye]["timestamp"] = t_array
-            resampled_array[:,n_eye]["confidence"] = conf_array
-            if "world_index" in eye_data.dtype.names:
-                # Need to correct world index: the result of the matrix multiplication
-                # between an int (world_index) and float (weight_matrix) casts the
-                # result as a float. When the unstructured array is convered back to a
-                # structured array, the floating-point result is cast to an int, 
-                # effectively applying a floor rather than a round function.
-                world_index_array = weight_matrix @ eye_data["world_index"]
-                resampled_array[:,n_eye]["world_index"] = np.rint(world_index_array)
-        resampled_data.append({
-            "attributes": trial_data["attributes"],
-            "data": resampled_array.copy()
-        })
-    return resampled_data  
+        resampled_array = resample_trial(trial_data, dt)
+        resampled_data.append(
+            {"attributes": trial_data["attributes"], "data": resampled_array.copy()}
+        )
+    return resampled_data
 
 
-if __name__=="__main__":
+def resample_trial(trial_data: TrialDataType, dt: float) -> np.ndarray:
+    """Resample the data for both eyes for a single trial
+
+    Returns
+    -------
+    resampled_array: np.ndarray
+        A structured NumPy array where each row corresponds to a single data sample, and
+        each column corresponds to one of the eyes. For example, resampled_array[0,1] is
+        the first data sample (point) for eye 1, and resampled_array[:,0] is all data 
+        for eye 0.
+    """
+    t_start = min([trial_data["data"][eye]["timestamp"].min() for eye in (0, 1)])
+    t_end = min([trial_data["data"][eye]["timestamp"].max() for eye in (0, 1)])
+    t_stop = round((t_end - t_start) / dt) * dt
+    t_array: npt.NDArray[np.float64] = np.arange(stop=t_stop, step=dt, dtype=np.float64)
+    resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype)
+    for n_eye, eye_data in enumerate(trial_data["data"]):
+        t_old = eye_data["timestamp"] - t_start
+        weight_matrix, conf_array = calc_weight_and_confidence(
+            eye_data, t_array, t_old, dt
+        )
+        resampled_array[:, n_eye] = resample_dataset(
+            eye_data, weight_matrix, t_array, conf_array
+        )
+    return resampled_array
+
+
+def calc_weight_and_confidence(
+    eye_data: np.ndarray,
+    t_array: npt.NDArray[np.float64],
+    t_old: npt.NDArray[np.float64],
+    dt: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Calculate the weight matrix for weighted average resampling and confidence"""
+    # Computing weights for a weighted average based on confidence
+    weight_matrix = np.zeros((t_array.size, t_old.size), dtype=np.float64)
+    conf_array = np.zeros_like(t_array)
+    for i, t in enumerate(t_array):
+        if t < dt:
+            # The first time value does not have any data before it, so use
+            # the initial condition
+            index = np.full_like(t_old, False, dtype=np.bool)
+            index[0] = True
+        else:
+            elements_in_time_interval = np.logical_and(t_old >= t - dt, t_old < t)
+            # Check if any values were found in the time interval, falling back
+            # to the previous index value if not (effectively a zero-order hold)
+            if np.any(elements_in_time_interval):
+                index = elements_in_time_interval
+        weight_row = eye_data["confidence"] * index
+        # The confidence values should be averaged, not weighted averaged
+        conf_array[i] = weight_row.mean(where=index)
+        weight_sum = weight_row.sum()
+        # Checking the sum of weights is greater than 0 before division. The sum
+        # could be zero if the confidence values are all zero.
+        if weight_sum > 0.001:
+            weight_matrix[i, :] = weight_row / weight_sum
+        else:
+            weight_matrix[i, :] = index
+    return weight_matrix, conf_array
+
+
+def resample_dataset(
+    eye_data: np.ndarray,
+    weight_matrix: npt.NDArray[np.float64],
+    t_array: npt.NDArray[np.float64],
+    conf_array: npt.NDArray[np.float64],
+):
+    """Resample a single structured eye data array via weighted average"""
+    # Must convert the structured array to an unstructured array for matrix
+    # multiplication, then convert back to structured
+    unstructured_data = rfn.structured_to_unstructured(eye_data)
+    unstruct_resampled_data = weight_matrix @ unstructured_data
+    resampled_array = rfn.unstructured_to_structured(
+        unstruct_resampled_data, dtype=eye_data.dtype
+    )
+    # Replace weighted average time & confidence with correct time & confidence
+    resampled_array["timestamp"] = t_array
+    resampled_array["confidence"] = conf_array
+    if "world_index" in eye_data.dtype.names:
+        # Need to correct world index: the result of the matrix multiplication between
+        # an int (world_index) and float (weight_matrix) casts the result as a float.
+        # When the unstructured array is converted back to a structured array, the
+        # floating-point multiplication result is cast to an int, effectively applying
+        # a floor rather than a round function.
+        world_index_array = weight_matrix @ eye_data["world_index"]
+        resampled_array["world_index"] = np.rint(world_index_array)
+    return resampled_array
+
+
+if __name__ == "__main__":
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)
     assert np.all(delta_array == np.array([1, 2, -5, 8]))
