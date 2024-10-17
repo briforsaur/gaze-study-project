@@ -35,7 +35,27 @@ def make_digit_str(num: int, width: int = 3) -> str:
 
 
 def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | list[str], verbose = False):
+    """Save a matplotlib figure
+
+    Saves a matplotlib figure in a single or multiple formats. Automatically prepends
+    the date to the filename, i.e. the output file is f"YYYY-MM-DD_{figname}.{format}".
+    
+    Parameters
+    ----------
+    fig: matplotlib.figure.Figure
+        A matplotlib figure handle to be saved.
+    fig_path: pathlib.Path
+        Folder/directory to save the figure.
+    figname: str
+        Desired name for the figure after the date suffix.
+    formats: str | list[str]
+        Desired file format to use. Can be a single string like "png" or an iterable of
+        strings like ("png", "svg"). The strings must be a format supported by 
+        matplotlib's savefig() method.
+    """
     datestr = date.today().isoformat()
+    if isinstance(formats, str):
+        formats = (formats,)
     for format in formats:
         full_path = fig_path / f"{datestr}_{figname}.{format}"
         fig.savefig(full_path)
