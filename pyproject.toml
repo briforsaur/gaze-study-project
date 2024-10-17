@@ -13,6 +13,7 @@ dependencies = [
     "msgpack",
     "numpy",
     "h5py",
+    "matplotlib",
 ]
 dynamic = ["version"]
 
