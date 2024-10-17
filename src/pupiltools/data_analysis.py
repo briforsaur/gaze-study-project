@@ -1,4 +1,5 @@
 from numpy import typing as npt
+from numpy.lib import recfunctions as rfn
 import numpy as np
 from .aliases import RawParticipantDataType, TrialDataType
 
@@ -71,16 +72,62 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
 
 
 def resample_data(participant_data: RawParticipantDataType, dt: float):
+    """Resample all datasets for a list of participant"""
+    resampled_data = []
     for trial_data in participant_data:
         t_start = min([trial_data["data"][eye]["timestamp"].min() for eye in (0,1)])
         t_end = min([trial_data["data"][eye]["timestamp"].max() for eye in (0,1)])
         t_stop = round((t_end - t_start)/dt)*dt
-        t_array = np.arange(stop=t_stop, step=dt)
-        for eye_data in trial_data["data"]:
+        t_array: npt.NDArray[np.float64] = np.arange(stop=t_stop, step=dt, dtype=np.float64)
+        resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype)
+        for n_eye, eye_data in enumerate(trial_data["data"]):
             t_old = eye_data["timestamp"] - t_start
-            for t1, t2 in zip(t_array[:-1], t_array[1:]):
-                index = np.where(t_old >= t1 and t_old < t2)
-                
+            # Computing weights for a weighted average based on confidence
+            weight_matrix = np.zeros((t_array.size, t_old.size), dtype=np.float64)
+            conf_array = np.zeros_like(t_array)
+            for i, t in enumerate(t_array):
+                if t < dt:
+                    # The first time value does not have any data before it, so use 
+                    # the initial condition
+                    index = np.full_like(t_old, False, dtype=np.bool)
+                    index[0] = True
+                else:
+                    elements_in_time_interval = np.logical_and(t_old >= t-dt, t_old < t)
+                    # Check if any values were found in the time interval, falling back 
+                    # to the previous index value if not (effectively a zero-order hold)
+                    if np.any(elements_in_time_interval):
+                        index = elements_in_time_interval
+                weight_row = eye_data["confidence"]*index
+                # The confidence values should be averaged, not weighted averaged
+                conf_array[i] = weight_row.mean(where=index)
+                weight_sum = weight_row.sum()
+                # Checking the sum of weights is greater than 0 before division. The sum 
+                # could be zero if the confidence values are all zero.
+                if weight_sum > 0.001:
+                    weight_matrix[i,:] = weight_row/weight_sum
+                else:
+                    weight_matrix[i,:] = index
+            # Need to convert the structured array to an unstructured array for matrix 
+            # multiplication
+            unstructured_data = rfn.structured_to_unstructured(eye_data)
+            unstruct_resampled_data = weight_matrix @ unstructured_data
+            resampled_array[:,n_eye] = rfn.unstructured_to_structured(unstruct_resampled_data, dtype=eye_data.dtype)
+            # Replace weighted average time & confidence with correct time & confidence
+            resampled_array[:,n_eye]["timestamp"] = t_array
+            resampled_array[:,n_eye]["confidence"] = conf_array
+            if "world_index" in eye_data.dtype.names:
+                # Need to correct world index: the result of the matrix multiplication
+                # between an int (world_index) and float (weight_matrix) casts the
+                # result as a float. When the unstructured array is convered back to a
+                # structured array, the floating-point result is cast to an int, 
+                # effectively applying a floor rather than a round function.
+                world_index_array = weight_matrix @ eye_data["world_index"]
+                resampled_array[:,n_eye]["world_index"] = np.rint(world_index_array)
+        resampled_data.append({
+            "attributes": trial_data["attributes"],
+            "data": resampled_array.copy()
+        })
+    return resampled_data  
 
 
 if __name__=="__main__":
