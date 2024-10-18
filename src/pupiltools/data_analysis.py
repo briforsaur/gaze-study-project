@@ -75,14 +75,19 @@ def resample_data(participant_data: RawParticipantDataType, dt: float):
     """Resample all datasets for a list of participant data"""
     resampled_data = []
     for trial_data in participant_data:
-        resampled_array = resample_trial(trial_data, dt)
+        old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)]
+        t_start, t_stop, t_ins = get_key_times(old_t_arrays, trial_data["attributes"]["t_instruction"], dt)
+        resampled_array = resample_trial(trial_data, t_start, t_stop, dt)
+        keys = ("die", "recording", "task", "trial")
+        resampled_attributes = {k: trial_data["attributes"][k] for k in keys}
+        resampled_attributes.update({"t_offset": t_start, "t_instruction": t_ins})
         resampled_data.append(
-            {"attributes": trial_data["attributes"], "data": resampled_array.copy()}
+            {"attributes": resampled_attributes, "data": resampled_array.copy()}
         )
     return resampled_data
 
 
-def resample_trial(trial_data: TrialDataType, dt: float) -> np.ndarray:
+def resample_trial(trial_data: TrialDataType, t_start: float, t_stop: float, dt: float) -> np.ndarray:
     """Resample the data for both eyes for a single trial
 
     Returns
@@ -93,9 +98,6 @@ def resample_trial(trial_data: TrialDataType, dt: float) -> np.ndarray:
         the first data sample (point) for eye 1, and resampled_array[:,0] is all data 
         for eye 0.
     """
-    t_start = min([trial_data["data"][eye]["timestamp"].min() for eye in (0, 1)])
-    t_end = min([trial_data["data"][eye]["timestamp"].max() for eye in (0, 1)])
-    t_stop = round((t_end - t_start) / dt) * dt
     t_array: npt.NDArray[np.float64] = np.arange(stop=t_stop, step=dt, dtype=np.float64)
     resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype)
     for n_eye, eye_data in enumerate(trial_data["data"]):
@@ -107,6 +109,14 @@ def resample_trial(trial_data: TrialDataType, dt: float) -> np.ndarray:
             eye_data, weight_matrix, t_array, conf_array
         )
     return resampled_array
+
+
+def get_key_times(time_arrays: list[npt.NDArray[np.float64]], t_instruction: float, dt: float) -> tuple[float, float, float]:
+    t_start = min([time_arrays[eye][0] for eye in (0, 1)])
+    t_end = min([time_arrays[eye][-1] for eye in (0, 1)])
+    t_stop = round((t_end - t_start) / dt) * dt
+    t_ins = round((t_instruction - t_start)/dt)*dt
+    return t_start, t_stop, t_ins
 
 
 def calc_weight_and_confidence(
