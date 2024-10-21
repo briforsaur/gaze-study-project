@@ -4,6 +4,8 @@ import numpy as np
 AttributesType: TypeAlias = dict[str, str | np.float64 | np.int64]
 TrialDataType: TypeAlias = dict[str, AttributesType | list[np.ndarray]]
 RawParticipantDataType: TypeAlias = list[TrialDataType]
+ResampledTrialDataType: TypeAlias = dict[str, AttributesType | np.ndarray]
+ResampledParticipantDataType: TypeAlias = list[ResampledTrialDataType]
 
 # NumPy datatype aliases
 planar_position_dt = np.dtype([("x", np.double), ("y", np.double)])

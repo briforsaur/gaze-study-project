@@ -1,7 +1,7 @@
 from numpy import typing as npt
 from numpy.lib import recfunctions as rfn
 import numpy as np
-from .aliases import RawParticipantDataType, TrialDataType
+from .aliases import RawParticipantDataType, TrialDataType, ResampledParticipantDataType
 
 
 def calc_deltas(array: np.ndarray) -> np.ndarray:
@@ -71,7 +71,7 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
     return dt_stats
 
 
-def resample_data(participant_data: RawParticipantDataType, dt: float):
+def resample_data(participant_data: RawParticipantDataType, dt: float) -> ResampledParticipantDataType:
     """Resample all datasets for a list of participant data"""
     resampled_data = []
     for trial_data in participant_data:
