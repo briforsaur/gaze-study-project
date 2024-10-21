@@ -1,6 +1,7 @@
 import pupiltools.data_import as d_import
 import pupiltools.data_plotting as d_plot
 import pupiltools.data_analysis as da
+import pupiltools.export as pt_export
 from pupiltools.utilities import save_figure
 
 from argparse import ArgumentParser
@@ -16,6 +17,7 @@ class Args:
     fig_path: Path
     T_resample: float
     show_plot: bool
+    resampled_data_path: Path
 
 
 def get_args() -> Args:
@@ -33,17 +35,21 @@ def get_args() -> Args:
     parser.add_argument(
         "--show_plot", action="store_true", help="Show result in interactive window"
     )
+    parser.add_argument(
+        "--resampled_data_path", type=Path, default=None,
+        help="Folder to save the resampled data. If not provided, data is not saved."
+    )
     args = parser.parse_args()
     return Args(**vars(args))
 
 
 if __name__ == "__main__":
     args = get_args()
-    variables = ("timestamp", "diameter_3d", "confidence", "sphere")
+    variables = "all"
     eyes = (0, 1)
     file_path = args.data_path / f"{args.participant_id}.hdf5"
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
-    participant_data = d_import.get_raw_participant_data(
+    participant_data, participant_metadata = d_import.get_raw_participant_data(
         file_path, variables=variables, **hdf_path_info
     )
     resampled_data = da.resample_data(participant_data, args.T_resample)
@@ -53,6 +59,15 @@ if __name__ == "__main__":
         "diameter_3d",
         "Diameter [mm]"
     )
+    if args.resampled_data_path is not None:
+        complete_data_structure = {
+            "attributes": participant_metadata,
+            "data": resampled_data
+        }
+        if not args.resampled_data_path.exists():
+            args.resampled_data_path.mkdir()
+        export_path = args.resampled_data_path / f"{args.participant_id}.hdf5"
+        pt_export.export_hdf(export_path, complete_data_structure)
     if args.fig_path is not None:
         figname = f"resample-comparison-dt-{args.T_resample*1000:0.0f}ms"
         save_figure(resample_fig, args.fig_path, figname, ("png", "svg"))

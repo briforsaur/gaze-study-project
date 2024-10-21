@@ -163,18 +163,19 @@ def get_path(
     return path
 
 
-def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> RawParticipantDataType:
+def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[RawParticipantDataType, dict]:
     """Get raw participant data from an HDF File"""
     hdf_path_info = {"group": group, "topic": topic, "method": method}
     participant_data = []
     with GazeDataFile(file, mode='r') as datafile:
+        participant_metadata = datafile.get_attributes()
         for i_trial in range(datafile.n_trials):
             attr = datafile.get_attributes(trial=i_trial, **hdf_path_info)
             data = []
             for eye in (0, 1):
                 data.append(datafile.get_data(trial=i_trial, eye=eye, variables=variables, **hdf_path_info))
             participant_data.append({"attributes": attr, "data": data})
-    return participant_data
+    return participant_data, participant_metadata
 
 
 if __name__ == "__main__":

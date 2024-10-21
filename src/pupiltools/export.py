@@ -3,13 +3,14 @@
 import msgpack as mpk
 import numpy as np
 import pathlib
-from collections.abc import Iterator, Container
+from collections.abc import Iterator, Container, Iterable
 import csv
 import json
 from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError
 from .aliases import pupil_datatype
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
+from os import PathLike
 
 
 ts_file_suffix = "_timestamps.npy"
@@ -31,7 +32,7 @@ def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experime
             export_data_csv(sub_folder, output_path, topics)
     elif filetype == "hdf":
         metadata = get_metadata(experiment_log, demographics_log)
-        export_hdf(folder_path, output_path, sub_folders, metadata)
+        export_hdf_from_raw(folder_path, output_path, sub_folders, metadata)
 
 
 def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.Path) -> Iterator[pathlib.Path]:
@@ -63,7 +64,7 @@ def export_data_csv(
             writer.writerows(flattened_data)
 
 
-def export_hdf(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path], metadata: dict):
+def export_hdf_from_raw(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path], metadata: dict):
     """Export raw Pupil pldata and npy files to HDF5 format"""
     topic = "pupil"
     export_file = output_path / f"{folder_path.name}.hdf5"
@@ -198,6 +199,35 @@ def get_metadata(experiment_log: pathlib.Path, demographics_log: pathlib.Path) -
     session_datetime = fix_datetime_string(session_datetime)
     experiment_metadata["header"]["date"] = session_datetime
     return experiment_metadata
+
+
+def export_hdf(file:str | bytes | PathLike, data_structure):
+    with h5py.File(file, 'w') as f_root:
+        f_root.attrs.update(data_structure["attributes"])
+        trials_group = f_root.create_group("trials")
+        for i, trial in enumerate(data_structure["data"]):
+            trial_group = trials_group.create_group(make_digit_str(i))
+            trial_group.attrs.update(trial["attributes"])
+            trial_group.create_dataset("pupil_3d", data=trial["data"])
+
+
+def recurse_write_hdf(group: h5py.Group, data_structure):
+    attrs_key = "attributes"
+    if isinstance(data_structure, dict):
+        for key, item in data_structure.items():
+            if key == attrs_key:
+                group.attrs.update(item)
+            elif isinstance(item, np.ndarray):
+                group.create_dataset(key, data=item)
+            elif isinstance(item, Iterator):
+                subgroup = group.create_group(key)
+                recurse_write_hdf(subgroup, item)
+    elif isinstance(data_structure, Iterable):
+        for i, item in enumerate(data_structure):
+            if isinstance(data_file_suffix, dict):
+                group.create_dataset
+
+
 
 
 def load_json_log(log_file_path: pathlib.Path) -> dict:
