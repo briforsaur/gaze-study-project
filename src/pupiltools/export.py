@@ -6,7 +6,8 @@ import pathlib
 from collections.abc import Iterator, Container
 import csv
 import json
-from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError, pupil_datatype
+from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError
+from .aliases import pupil_datatype
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
 
