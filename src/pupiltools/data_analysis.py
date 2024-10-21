@@ -80,7 +80,7 @@ def resample_data(participant_data: RawParticipantDataType, dt: float):
         resampled_array = resample_trial(trial_data, t_start, t_stop, dt)
         keys = ("die", "recording", "task", "trial")
         resampled_attributes = {k: trial_data["attributes"][k] for k in keys}
-        resampled_attributes.update({"t_offset": t_start, "t_instruction": t_ins})
+        resampled_attributes.update({"t_offset": t_start, "t_instruction": t_ins, "sample_time_interval": dt})
         resampled_data.append(
             {"attributes": resampled_attributes, "data": resampled_array.copy()}
         )
