@@ -4,7 +4,7 @@ import numpy as np
 import os
 from pathlib import Path
 from typing import TypeAlias
-from .aliases import pupil_datatype, AttributesType, RawParticipantDataType
+from .aliases import pupil_datatype, AttributesType, RawParticipantDataType, ResampledParticipantDataType
 from .utilities import make_digit_str
 
 
@@ -51,7 +51,7 @@ class GazeDataFile:
         group: str = "trials",
         trial: int = 0,
         topic: str = "pupil",
-        eye: int = 0,
+        eye: int = -1,
         method: str = "3d",
         variables: str | list[str] = "all",
     ) -> np.ndarray:
@@ -145,15 +145,11 @@ def get_path(
     '/trials/000'
     >>> get_path(group="trials", trial=0, topic="pupil", eye=0, method="3d")
     '/trials/000/pupil_eye0_3d'
+    >>> get_path(group="trials", trial=0, topic="pupil", method="3d")
+
     """
-    if trial >= 0:
-        trial_str = make_digit_str(trial, width=3)
-    else:
-        trial_str = ""
-    if topic and method and (eye in [0, 1]):
-        dataset_name = "_".join([topic, f"eye{eye}", method])
-    else:
-        dataset_name = ""
+    trial_str = make_digit_str(trial, width=3) if trial >= 0 else ""
+    dataset_name = get_dataset_name(topic, eye, method)
     # Creating a list of non-empty path members
     pathlist = [var for var in [group, trial_str, dataset_name] if var]
     if group in ["root", "/"]:
@@ -163,6 +159,13 @@ def get_path(
     return path
 
 
+def get_dataset_name(topic: str = "", eye: int = -1, method: str = "") -> str:
+    eye_str = f"eye{eye}" if eye in [0, 1] else ""
+    # Making the dataset name out of nonempty string parts
+    dataset_name_list = [part for part in [topic, eye_str, method] if part]
+    return "_".join(dataset_name_list)
+
+
 def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[RawParticipantDataType, dict]:
     """Get raw participant data from an HDF File"""
     hdf_path_info = {"group": group, "topic": topic, "method": method}
@@ -170,12 +173,30 @@ def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "tria
     with GazeDataFile(file, mode='r') as datafile:
         participant_metadata = datafile.get_attributes()
         for i_trial in range(datafile.n_trials):
-            attr = datafile.get_attributes(trial=i_trial, **hdf_path_info)
-            data = []
-            for eye in (0, 1):
-                data.append(datafile.get_data(trial=i_trial, eye=eye, variables=variables, **hdf_path_info))
+            attr = datafile.get_attributes(group=group, trial=i_trial)
+            data = get_eye_data(datafile, variables=variables, trial=i_trial, **hdf_path_info)
             participant_data.append({"attributes": attr, "data": data})
     return participant_data, participant_metadata
+
+
+def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[ResampledParticipantDataType, dict]:
+    """Get resampled participant data from an HDF File"""
+    # Just a wrapper for get_raw_participant data with the correct return type hint
+    hdf_path_info = {"group": group, "topic": topic, "method": method}
+    return get_raw_participant_data(file=file, variables=variables, **hdf_path_info)
+
+
+def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str = "trials", trial: int = 0, topic: str = "pupil", method: str = "3d", eyes: tuple[int] = (0, 1)) -> np.ndarray | list[np.ndarray]:
+    group_path = get_path(group=group, trial=trial)
+    group_obj: h5py.Group = datafile.hdf_root[group_path]
+    data = []
+    for eye in eyes:
+        if get_dataset_name(topic=topic, eye=eye, method=method) in group_obj:
+            data.append(datafile.get_data(group=group, trial=trial, topic=topic, eye=eye, method=method, variables=variables))
+    # If the data list is still empty, then the eyes must be in a single dataset
+    if not data:
+        data = datafile.get_data(group=group, trial=trial, topic=topic, eye=-1, method=method, variables=variables)
+    return data
 
 
 if __name__ == "__main__":
@@ -185,7 +206,7 @@ if __name__ == "__main__":
     test_set = {"topic": "pupil", "eye": 0, "method": "3d"}
     with GazeDataFile(args.data_file_path, mode="r") as datafile:
         data = datafile.get_data(
-            variables=["timestamp", "world_index", "diameter_3d"]
+            variables=["timestamp", "world_index", "diameter_3d"], **test_set
         )
         root_attrs = datafile.get_attributes()
         trial_attrs = datafile.get_attributes(group="trials", trial=0)
