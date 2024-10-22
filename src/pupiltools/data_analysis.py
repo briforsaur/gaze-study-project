@@ -182,6 +182,39 @@ def resample_dataset(
     return resampled_array
 
 
+def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
+    max_length = 0
+    for data_group in data_list:
+        data: np.ndarray = data_group["data"]
+        max_length = max(max_length, data.shape[0])
+    return max_length
+
+
+def get_trendlines_by_task(data_list):
+    N_max = get_max_data_length(data_list)
+    task_map = {"action": 0, "observation": 1}
+    diameter_array = np.full((N_max, 60, 2, 2), fill_value=np.nan, dtype=np.float64)
+    i_tasks = [0, 0]
+    for data_group in data_list:
+        task_index = task_map[data_group["attributes"]["task"]]
+        trial_length = data_group["data"].shape[0]
+        i = i_tasks[task_index]
+        for n_eye in (0, 1):
+            d_normalized = normalize_pupil_diameter(data_group["data"][:,n_eye])
+            diameter_array[0:trial_length, i, n_eye, task_index] = d_normalized
+        i_tasks[task_index] += 1
+    trendline_array = np.mean(diameter_array, axis=1, where=~np.isnan(diameter_array))
+    return trendline_array
+
+
+def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
+    """Normalize the input data to a mean of 0 for the first t_baseline seconds"""
+    t = pupil_data["timestamp"]
+    d = pupil_data["diameter_3d"]
+    d = d / np.mean(d[np.where(t<t_baseline)]) - 1.0
+    return d
+
+
 if __name__ == "__main__":
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)
