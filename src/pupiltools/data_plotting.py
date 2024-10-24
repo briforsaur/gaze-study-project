@@ -6,6 +6,9 @@ import numpy as np
 from .aliases import RawParticipantDataType, pupil_datatype
 
 
+_cm = 1/2.54
+
+
 def plot_raw_pupil_diameter_comparison(participant_data: RawParticipantDataType) -> mpl_fig:
     fig = plt.figure(figsize=(15,10))
     subfigs = fig.subfigures(1,2)
@@ -64,3 +67,31 @@ def plot_dt_histogram(time_deltas: list[np.ndarray]) -> mpl_fig:
     ax.set_xlabel("Time Between Samples [s]")
     ax.set_ylabel("Proportion of Samples")
     return fig
+
+
+def plot_trendlines(trendline_array: npt.NDArray[np.float64]):
+    """Plot a comparison of pupil diameter for actions and observations for both eyes
+    
+    Parameters
+    ----------
+    trendline_array: numpy.ndarray[numpy.float64]
+        An Nx2x2x3 array, where the first dimension is the samples in time, the second
+        dimension is the eye number (0 for right, 1 for left), the third dimension is
+        the task number (0 for action, 1 for observation), and the fourth dimension 
+        stacks the different statistics (0 for bottom range, 1 for mean or median - 
+        what will be displayed as a line, and 1 for top range).
+    """
+    t_max = (trendline_array.shape[0]-1)*np.float64(0.01)
+    t = np.linspace(0, t_max, trendline_array.shape[0])
+    fig, axs = plt.subplots(2, figsize=(30*_cm, 25*_cm))
+    fig.suptitle("Fractional Change in Pupil Diameter from Baseline Comparison for Two Tasks")
+    task_labels = ["action", "observation"]
+    ax: mpl_axes
+    for i, ax in enumerate(axs):
+        ax.set_title(f"eye{i}")
+        for j in (0, 1):
+            ax.plot(t, trendline_array[:,i,j,1], label=task_labels[j])
+            ax.fill_between(t, trendline_array[:,i,j,0], trendline_array[:,i,j,2], alpha=0.2)
+        ax.legend()
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("Fractional Change in Pupil Diameter")

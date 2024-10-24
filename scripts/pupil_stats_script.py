@@ -47,15 +47,7 @@ def main(args: Args):
         file_path, variables=variables, **hdf_path_info
     )
     trendline_array = da.get_trendlines_by_task(participant_data)
-    t_max = trendline_array.shape[0]*0.01
-    t = np.linspace(0, t_max, trendline_array.shape[0])
-    fig, axs = plt.subplots(2)
-    task_labels = ["action", "observation"]
-    for i, ax in enumerate(axs):
-        ax.set_title(f"eye{i}")
-        for j in (0, 1):
-            ax.plot(t, trendline_array[:,i,j], label=task_labels[j])
-        ax.legend()
+    d_plot.plot_trendlines(trendline_array)
     plt.show()
     pass
 

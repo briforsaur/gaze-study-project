@@ -203,7 +203,10 @@ def get_trendlines_by_task(data_list):
             d_normalized = normalize_pupil_diameter(data_group["data"][:,n_eye])
             diameter_array[0:trial_length, i, n_eye, task_index] = d_normalized
         i_tasks[task_index] += 1
-    trendline_array = np.mean(diameter_array, axis=1, where=~np.isnan(diameter_array))
+    trendline_array = np.full((N_max, 2, 2, 3), fill_value=np.nan, dtype=np.float64)
+    trendline_array[:,:,:,0] = np.nanpercentile(diameter_array, (5), axis=1)
+    trendline_array[:,:,:,1] = np.mean(diameter_array, axis=1, where=~np.isnan(diameter_array))
+    trendline_array[:,:,:,2] = np.nanpercentile(diameter_array, (95), axis=1)
     return trendline_array
 
 
