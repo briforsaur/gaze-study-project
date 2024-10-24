@@ -218,6 +218,12 @@ def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
     return d
 
 
+def remove_low_confidence(data_list):
+    for data_group in data_list:
+        confidence = data_group["data"]["confidence"]
+        low_conf_index = np.where(confidence < 0.6)
+        data_group["data"]["diameter_3d"][low_conf_index] = np.nan
+
 if __name__ == "__main__":
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)

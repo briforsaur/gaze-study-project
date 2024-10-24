@@ -40,12 +40,13 @@ def get_args() -> Args:
 
 
 def main(args: Args):
-    variables = ("timestamp", "diameter_3d")
+    variables = ("timestamp", "diameter_3d", "confidence")
     file_path = args.data_path / f"{args.participant_id}.hdf5"
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
     participant_data, participant_metadata = d_import.get_resampled_participant_data(
         file_path, variables=variables, **hdf_path_info
     )
+    da.remove_low_confidence(participant_data)
     trendline_array = da.get_trendlines_by_task(participant_data)
     d_plot.plot_trendlines(trendline_array)
     plt.show()
