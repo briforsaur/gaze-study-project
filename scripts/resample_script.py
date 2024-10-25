@@ -69,7 +69,7 @@ if __name__ == "__main__":
         export_path = args.resampled_data_path / f"{args.participant_id}.hdf5"
         pt_export.export_hdf(export_path, complete_data_structure)
     if args.fig_path is not None:
-        figname = f"resample-comparison-dt-{args.T_resample*1000:0.0f}ms"
+        figname = f"resample-comparison-{args.participant_id}-dt-{args.T_resample*1000:0.0f}ms"
         save_figure(resample_fig, args.fig_path, figname, ("png", "svg"))
     if args.show_plot:
         plt.show()
