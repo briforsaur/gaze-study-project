@@ -54,7 +54,7 @@ if __name__ == "__main__":
     eyes = (0, 1)
     file_path = args.data_path / f"{args.participant_id}.hdf5"
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
-    participant_data = d_import.get_raw_participant_data(
+    participant_data, _ = d_import.get_raw_participant_data(
         file_path, variables=variables, **hdf_path_info
     )
     fig = d_plot.plot_raw_pupil_diameter_comparison(participant_data)
