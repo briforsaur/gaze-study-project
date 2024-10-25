@@ -56,17 +56,17 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
     A dictionary of statistics of the data, including the mean, min, 5th
     percentile, median, 95th percentile, 99th percentile, and maximum values.
     """
-    t_deltas = np.concatenate(t_deltas)
+    t_delta_array = np.concatenate(t_deltas)
     percentiles = [5, 50, 95, 99]
-    dt_percentiles = np.percentile(t_deltas, percentiles)
+    dt_percentiles = np.percentile(t_delta_array, percentiles)
     dt_stats = {
-        "mean": np.mean(t_deltas),
-        "min": dt_percentiles.min(),
+        "mean": np.mean(t_delta_array),
+        "min": t_delta_array.min(),
         "5th percentile": dt_percentiles[0],
         "median": dt_percentiles[1],
         "95th percentile": dt_percentiles[2],
         "99th percentile": dt_percentiles[3],
-        "max": dt_percentiles.max(),
+        "max": t_delta_array.max(),
     }
     return dt_stats
 
