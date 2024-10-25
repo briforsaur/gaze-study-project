@@ -21,7 +21,7 @@ def time_delta_analysis(participant_data):
     t_deltas = da.get_time_deltas(participant_data)
     td_stats = da.get_time_delta_stats(t_deltas)
     stats = (
-        f"\nMean: {td_stats['mean']:.5f}\n"
+        f"Mean: {td_stats['mean']:.5f}\n"
         f"Median: {td_stats['median']:.5f}\n"
         f"95th percentile: {td_stats['95th percentile']:.5f}\n"
         f"99th percentile: {td_stats['99th percentile']:.5f}\n"
@@ -58,6 +58,7 @@ if __name__ == "__main__":
         file_path, variables=variables, **hdf_path_info
     )
     fig = d_plot.plot_raw_pupil_diameter_comparison(participant_data)
+    print(f"\n{args.participant_id}")
     td_fig = time_delta_analysis(participant_data)
     if args.fig_path is not None:
         figname = f"{args.participant_id}_time_deltas"
