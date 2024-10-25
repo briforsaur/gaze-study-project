@@ -243,6 +243,9 @@ def remove_low_confidence(data_array: np.ndarray):
     low_conf_index = np.where(confidence < 0.6)
     data_array[data_fields][low_conf_index] = np.nan
 
+def get_max_values(data_array: np.ndarray) -> np.ndarray:
+    return np.nanmax(data_array, axis=0)
+
 if __name__ == "__main__":
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)

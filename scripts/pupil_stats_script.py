@@ -51,6 +51,8 @@ def main(args: Args):
     da.remove_low_confidence(p_data_array)
     d_trendline_array = da.get_trendlines_by_task(p_data_array["diameter_3d"])
     d_plot.plot_trendlines(d_trendline_array)
+    max_values = da.get_max_values(p_data_array["diameter_3d"])
+    d_plot.plot_max_values(max_values)
     if args.show_plot:
         plt.show()
     pass

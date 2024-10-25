@@ -95,3 +95,23 @@ def plot_trendlines(trendline_array: npt.NDArray[np.float64]):
         ax.legend()
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("Fractional Change in Pupil Diameter")
+
+
+def plot_max_values(max_values: np.ndarray):
+    fig1, axs = plt.subplots(2, figsize=(16, 9))
+    fig1.suptitle("Distribution of Maximum Fractional Pupil Diameter Change")
+    task_labels = ["action", "observation"]
+    ax: mpl_axes
+    for i, ax in enumerate(axs):
+        ax.set_title(f"eye{i}")
+        for j in (0, 1):
+            #weights = np.ones_like(max_values[:,i,j])/max_values[:,i,j].size
+            ax.hist(max_values[:,i,j], bins="auto", histtype="barstacked", label=task_labels[j], alpha=0.7)
+        ax.legend()
+        ax.set_xlabel("Max Fractional Change in Pupil Diameter")
+        ax.set_ylabel("Proportion of Trials")
+    fig2, ax = plt.subplots(1, figsize=(16, 9))
+    for j in (0, 1):
+        max_values_sum = max_values[:,:,j].sum(axis=1)
+        #weights = np.ones_like(max_values_sum)/max_values_sum.size
+        ax.hist(max_values_sum, bins="auto", histtype="barstacked", label=task_labels[j], alpha=0.7)
