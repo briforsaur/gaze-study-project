@@ -46,9 +46,11 @@ def main(args: Args):
     participant_data, participant_metadata = d_import.get_resampled_participant_data(
         file_path, variables=variables, **hdf_path_info
     )
-    da.remove_low_confidence(participant_data)
-    trendline_array = da.get_trendlines_by_task(participant_data)
-    d_plot.plot_trendlines(trendline_array)
+    p_data_array = da.convert_to_array(participant_data)
+    da.normalize_pupil_diameter(p_data_array)
+    da.remove_low_confidence(p_data_array)
+    d_trendline_array = da.get_trendlines_by_task(p_data_array["diameter_3d"])
+    d_plot.plot_trendlines(d_trendline_array)
     if args.show_plot:
         plt.show()
     pass

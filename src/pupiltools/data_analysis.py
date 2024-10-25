@@ -1,7 +1,7 @@
 from numpy import typing as npt
 from numpy.lib import recfunctions as rfn
 import numpy as np
-from .aliases import RawParticipantDataType, TrialDataType, ResampledParticipantDataType
+from .aliases import RawParticipantDataType, TrialDataType, ResampledParticipantDataType, pupil_datatype
 
 
 def calc_deltas(array: np.ndarray) -> np.ndarray:
@@ -190,39 +190,58 @@ def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
     return max_length
 
 
-def get_trendlines_by_task(data_list):
-    N_max = get_max_data_length(data_list)
+def convert_to_array(participant_data: list[dict[str, dict | np.ndarray]]) -> np.ndarray:
+    """Converts a list of task metadata and data to a single numpy array
+
+    Returns
+    -------
+    numpy.ndarray
+        A structured Nx60x2x2 array, where the first index is the sample number up to N 
+        (the maximum length of any of the data series), the second index is the task
+        number, in order, for a given task, the third index is the eye ID (0 for right,
+        1 for left), and the fourth index is the task type (0 for action, 1 for 
+        observation). For example, output[:, 0, 0, 1] is all samples for the first 
+        observation trial, for the right eye. All trial data series that are shorter 
+        than the longest series are padded with np.nan.
+    """
+    N_max = get_max_data_length(participant_data)
     task_map = {"action": 0, "observation": 1}
-    diameter_array = np.full((N_max, 60, 2, 2), fill_value=np.nan, dtype=np.float64)
+    input_dtype = participant_data[0]["data"].dtype
+    data_array = np.full((N_max, 60, 2, 2), fill_value=np.nan, dtype=input_dtype)
     i_tasks = [0, 0]
-    for data_group in data_list:
+    for data_group in participant_data:
         task_index = task_map[data_group["attributes"]["task"]]
         trial_length = data_group["data"].shape[0]
         i = i_tasks[task_index]
         for n_eye in (0, 1):
-            d_normalized = normalize_pupil_diameter(data_group["data"][:,n_eye])
-            diameter_array[0:trial_length, i, n_eye, task_index] = d_normalized
+            data_array[0:trial_length, i, n_eye, task_index] = data_group["data"][:,n_eye]
         i_tasks[task_index] += 1
+    return data_array
+
+
+def get_trendlines_by_task(data_array):
+    N_max = data_array.shape[0]
     trendline_array = np.full((N_max, 2, 2, 3), fill_value=np.nan, dtype=np.float64)
-    trendline_array[:,:,:,0] = np.nanpercentile(diameter_array, (5), axis=1)
-    trendline_array[:,:,:,1] = np.mean(diameter_array, axis=1, where=~np.isnan(diameter_array))
-    trendline_array[:,:,:,2] = np.nanpercentile(diameter_array, (95), axis=1)
+    trendline_array[:,:,:,0] = np.nanpercentile(data_array, (5), axis=1)
+    trendline_array[:,:,:,1] = np.mean(data_array, axis=1, where=~np.isnan(data_array))
+    trendline_array[:,:,:,2] = np.nanpercentile(data_array, (95), axis=1)
     return trendline_array
 
 
 def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
     """Normalize the input data to a mean of 0 for the first t_baseline seconds"""
-    t = pupil_data["timestamp"]
+    t = pupil_data["timestamp"][:,0,0,0]
+    i_baseline = np.max(np.nonzero(t < t_baseline))
     d = pupil_data["diameter_3d"]
-    d = d / np.mean(d[np.where(t<t_baseline)]) - 1.0
-    return d
+    pupil_data["diameter_3d"] = d / np.mean(d[:i_baseline,:,:,:], axis=0) - 1.0
 
 
-def remove_low_confidence(data_list):
-    for data_group in data_list:
-        confidence = data_group["data"]["confidence"]
-        low_conf_index = np.where(confidence < 0.6)
-        data_group["data"]["diameter_3d"][low_conf_index] = np.nan
+def remove_low_confidence(data_array: np.ndarray):
+    fields_to_keep = ("timestamp", "confidence")
+    data_fields = [name for name in data_array.dtype.names if name not in fields_to_keep]
+    confidence = data_array["confidence"]
+    low_conf_index = np.where(confidence < 0.6)
+    data_array[data_fields][low_conf_index] = np.nan
 
 if __name__ == "__main__":
     test_array = np.array([1, 2, 4, -1, 7])
