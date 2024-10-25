@@ -49,7 +49,8 @@ def main(args: Args):
     da.remove_low_confidence(participant_data)
     trendline_array = da.get_trendlines_by_task(participant_data)
     d_plot.plot_trendlines(trendline_array)
-    plt.show()
+    if args.show_plot:
+        plt.show()
     pass
 
 
