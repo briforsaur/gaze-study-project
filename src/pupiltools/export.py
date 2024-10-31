@@ -7,7 +7,7 @@ from collections.abc import Iterator, Container, Iterable
 import csv
 import json
 from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError
-from .aliases import pupil_datatype
+from .aliases import pupil_datatype, ResampledParticipantDataType
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
 from os import PathLike
@@ -201,7 +201,46 @@ def get_metadata(experiment_log: pathlib.Path, demographics_log: pathlib.Path) -
     return experiment_metadata
 
 
-def export_hdf(file:str | bytes | PathLike, data_structure):
+def export_hdf(file:str | bytes | PathLike, data_structure: ResampledParticipantDataType):
+    """Export a dictionary of data and attributes to an HDF File
+    
+    Parameters
+    ----------
+    file: str | bytes | os.PathLike
+        A file to export to. Either a path as a string, or a file-like object from 
+        open() or similar functions.
+    data_structure: dict[str, dict | list]
+        A dictionary containing data and attributes of the data. It is expected to have
+        the following structure:
+
+        {
+            "attributes":
+                {
+                    "attr1": val1,
+                    etc
+                },
+            "data":
+                [
+                    {
+                        "attributes":
+                        {
+                            "attr1": val1,
+                            etc
+                        },
+                        "data": np.ndarray
+                    },
+                    {
+                        "attributes":
+                        {
+                            "attr1": val1,
+                            etc
+                        },
+                        "data": np.ndarray
+                    },
+                    etc
+                ]
+        }
+    """
     with h5py.File(file, 'w') as f_root:
         f_root.attrs.update(data_structure["attributes"])
         trials_group = f_root.create_group("trials")
