@@ -57,6 +57,9 @@ def main(args: Args):
                     max_values[:,eye,task], bins=n_bins, range=(0,0.5)
                 )
                 max_val_hist[:,task] += max_val_hist_vals
+    # Normalize the histograms to 1
+    max_val_hist: np.ndarray = max_val_hist/max_val_hist.sum(axis=0)
+    assert np.all(np.abs(max_val_hist.sum(axis=0) - 1) < 0.001)
     d_plot.manual_hist(max_val_hist, bin_edges)
     if args.show_plot:
         plt.show()

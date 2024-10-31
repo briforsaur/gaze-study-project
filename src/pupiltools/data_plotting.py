@@ -126,5 +126,5 @@ def manual_hist(values: np.ndarray, bin_edges: np.ndarray):
         ax.bar(bin_edges[:-1], values[:,i], 0.025, align="edge", alpha=0.8, label=task_labels[i])
     plt.legend()
     ax.set_xlabel("Maximum Fractional Change in Pupil Diameter")
-    ax.set_ylabel("Number of Trials")
+    ax.set_ylabel("Proportion of Trials")
     fig.suptitle("Comparison of Pupil Diameter Change By Task Type")
