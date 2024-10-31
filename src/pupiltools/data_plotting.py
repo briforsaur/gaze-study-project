@@ -94,6 +94,7 @@ def plot_trendlines(trendline_array: npt.NDArray[np.float64]):
             ax.fill_between(t, trendline_array[:,i,j,0], trendline_array[:,i,j,2], alpha=0.2)
         ax.legend()
         ax.set_xlabel("Time [s]")
+        ax.set_xlim([0, 4.25])
         ax.set_ylabel("Fractional Change in Pupil Diameter")
 
 
@@ -110,8 +111,20 @@ def plot_max_values(max_values: np.ndarray):
         ax.legend()
         ax.set_xlabel("Max Fractional Change in Pupil Diameter")
         ax.set_ylabel("Proportion of Trials")
-    fig2, ax = plt.subplots(1, figsize=(16, 9))
-    for j in (0, 1):
-        max_values_sum = max_values[:,:,j].sum(axis=1)
-        #weights = np.ones_like(max_values_sum)/max_values_sum.size
-        ax.hist(max_values_sum, bins="auto", histtype="barstacked", label=task_labels[j], alpha=0.7)
+    # TODO: FIX BROKEN CODE BELOW
+    # fig2, ax = plt.subplots(1, figsize=(16, 9))
+    # for j in (0, 1):
+    #     max_values_sum = max_values[:,:,j].sum(axis=1)
+    #     #weights = np.ones_like(max_values_sum)/max_values_sum.size
+    #     ax.hist(max_values_sum, bins="auto", histtype="barstacked", label=task_labels[j], alpha=0.7)
+
+
+def manual_hist(values: np.ndarray, bin_edges: np.ndarray):
+    fig, ax = plt.subplots(1, figsize=(16, 9))
+    task_labels = ["action", "observation"]
+    for i in (0,1):
+        ax.bar(bin_edges[:-1], values[:,i], 0.025, align="edge", alpha=0.8, label=task_labels[i])
+    plt.legend()
+    ax.set_xlabel("Maximum Fractional Change in Pupil Diameter")
+    ax.set_ylabel("Number of Trials")
+    fig.suptitle("Comparison of Pupil Diameter Change By Task Type")
