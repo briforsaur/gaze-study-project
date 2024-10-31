@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from matplotlib import pyplot as plt
 from pathlib import Path
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,12 +35,14 @@ def get_args() -> Args:
 
 
 def main(args: Args):
+    logging.basicConfig(level=logging.INFO)
     variables = ("timestamp", "diameter_3d", "confidence")
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
     participant_ids = ["P"+make_digit_str(i, 2) for i in range(1,31) if i not in (18, 20)]
-    max_val_hist = np.zeros((20,2), dtype=np.int64)
+    n_bins = 20
+    max_val_hist = np.zeros((n_bins,2), dtype=np.int64)
     for participant_id in participant_ids:
-        print(participant_id)
+        logger.info(f"Processing {participant_id}")
         file_path = args.data_path / f"{participant_id}.hdf5"
         participant_data, _ = d_import.get_resampled_participant_data(
             file_path, variables=variables, **hdf_path_info
@@ -50,11 +54,9 @@ def main(args: Args):
         for eye in (0,1):
             for task in (0,1):
                 max_val_hist_vals, bin_edges = np.histogram(
-                    max_values[:,eye,task], bins=20, range=(0,0.5)
+                    max_values[:,eye,task], bins=n_bins, range=(0,0.5)
                 )
                 max_val_hist[:,task] += max_val_hist_vals
-    #d_plot.plot_max_values(max_values)
-    print(np.sum(max_val_hist, axis=0))
     d_plot.manual_hist(max_val_hist, bin_edges)
     if args.show_plot:
         plt.show()
