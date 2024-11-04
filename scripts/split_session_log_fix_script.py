@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import json
 from pathlib import Path
 
-from pupiltools.utilities import fix_datetime_string
+from pupiltools.utilities import fix_datetime_string, make_digit_str
 
 
 _RECORD_NAMES = ("trial_record", "calibration_record")
@@ -30,6 +30,17 @@ def get_args():
         type=int, 
         help=("The amount to offset the trial and calibration numbers from the second "
               "log")
+    )
+    parser.add_argument(
+        "--trim_both",
+        action="store_true",
+        help=("Flag to indicate if the last trial of both logs should be trimmed, "
+              "otherwise only the first log is trimmed.")
+    )
+    parser.add_argument(
+        "--adjust_rec_num", 
+        action="store_true", 
+        help="TODO: Flag to indicate if the recording numbers must be adjusted as well."
     )
     return parser.parse_args()
 
@@ -88,7 +99,7 @@ def save_log(output_filepath, log):
         json.dump(log, log_file, indent=4)
 
 
-def main(log_paths: list[Path], output_filepath: Path, trial_offset: int):
+def main(log_paths: list[Path], output_filepath: Path, trial_offset: int, trim_both: bool = False, adjust_rec_num: bool = False):
     """Fix experiment data that was split across multiple recording sessions
     
     Parameters
@@ -99,6 +110,11 @@ def main(log_paths: list[Path], output_filepath: Path, trial_offset: int):
         The destination for the complete log file.
     trial_offset: int
         The amount to offset the trial and calibration numbers from the second log
+    trim_logs: list[bool] = [False, False]
+        List of booleans (or 0, 1) to indicate which log files to trim the final trial 
+        and calibration.
+    adjust_rec_num: bool = False
+        TODO: Flag to indicate if the recording numbers must be adjusted as well.
     """
     # For P20:
     logs = get_logs(log_paths)
@@ -112,8 +128,9 @@ def main(log_paths: list[Path], output_filepath: Path, trial_offset: int):
         calib = "calibration" in record
         offset_record(logs[1][record], trial_offset, t_offset, calibration=calib)
     # Remove the last trial and calibration from both logs
-    for log in logs:
-        remove_last_records(log)
+    for i, log in enumerate(logs):
+        if trim_both or i == 0:
+            remove_last_records(log)
     # Append log 2 to log 1
     complete_log = append_logs(logs)
     # Save new log file in the output folder
