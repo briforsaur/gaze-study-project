@@ -246,6 +246,25 @@ def remove_low_confidence(data_array: np.ndarray):
 def get_max_values(data_array: np.ndarray) -> np.ndarray:
     return np.nanmax(data_array, axis=0)
 
+
+def calc_split(class_distribution: np.ndarray, bin_edges: np.ndarray) -> tuple[float, tuple[float, float]]:
+    # Find pupil diameter increase that maximally separates the classes
+    # Brute force SVM solution based on squared hinge loss:
+    min_loss = np.inf
+    zeros = np.zeros_like(bin_edges[1:])
+    for b in bin_edges[1:]:
+        y = 2*(bin_edges[0:-1] - b)/bin_edges[1] + 1
+        loss = class_distribution[:, 0]*(np.maximum(zeros, 1 - y)**2)
+        loss += class_distribution[:, 1]*(np.maximum(zeros, 1 + y)**2)
+        loss = loss.sum()
+        if loss < min_loss:
+            min_loss = loss
+            split = b
+        else:
+            break
+    return split
+
+
 if __name__ == "__main__":
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)

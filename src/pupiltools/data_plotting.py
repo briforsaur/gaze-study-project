@@ -119,11 +119,15 @@ def plot_max_values(max_values: np.ndarray):
     #     ax.hist(max_values_sum, bins="auto", histtype="barstacked", label=task_labels[j], alpha=0.7)
 
 
-def manual_hist(values: np.ndarray, bin_edges: np.ndarray):
+def manual_hist(values: np.ndarray, bin_edges: np.ndarray, split: float|None = None, normalize: bool = False):
     fig, ax = plt.subplots(1, figsize=(16, 9))
     task_labels = ["action", "observation"]
+    if normalize:
+        values: np.ndarray = values/values.sum(axis=0)
     for i in (0,1):
         ax.bar(bin_edges[:-1], values[:,i], 0.025, align="edge", alpha=0.8, label=task_labels[i])
+    if split is not None:
+        ax.axvline(split, color='k', ls='--')
     plt.legend()
     ax.set_xlabel("Maximum Fractional Change in Pupil Diameter")
     ax.set_ylabel("Proportion of Trials")
