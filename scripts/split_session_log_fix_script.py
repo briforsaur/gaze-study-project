@@ -40,7 +40,7 @@ def get_args():
     parser.add_argument(
         "--adjust_rec_num", 
         action="store_true", 
-        help="TODO: Flag to indicate if the recording numbers must be adjusted as well."
+        help="Flag to indicate if the recording numbers must be adjusted as well."
     )
     return parser.parse_args()
 
@@ -64,7 +64,7 @@ def get_time_offset(time_strs: list[str]) -> int:
     return t_offset.seconds
 
 
-def offset_record(record: list[dict], trial_offset: int, t_offset: int, calibration: bool = False):
+def offset_record(record: list[dict], trial_offset: int, t_offset: int, rec_offset: int, calibration: bool = False):
     """Adjust all trial numbers and timestamps of a trial or calibration record"""
     if calibration:
         timestamp_names = ("t_start", "t_end")
@@ -76,12 +76,25 @@ def offset_record(record: list[dict], trial_offset: int, t_offset: int, calibrat
             logitem["trial"] += trial_offset
         for timestamp in timestamp_names:
             logitem[timestamp] += t_offset
+        if rec_offset != 0:
+            rec_num = int(logitem["recording"])
+            logitem["recording"] = make_digit_str(rec_num + rec_offset)
 
 
 def remove_last_records(log: dict[str, list]):
     """Remove the last trial record and calibration record in a log"""
     for record in _RECORD_NAMES:
         log[record].pop()
+
+
+def get_recording_offset(log: dict[str, list]) -> int:
+    max_offset = 0
+    for record in _RECORD_NAMES:
+        # Get the last item in the record list, since recording numbers are guaranteed 
+        # to increase monotonically
+        rec_offset = int(log[record][-1]["recording"]) + 1
+        max_offset = max(max_offset, rec_offset)
+    return max_offset
 
 
 def append_logs(logs: list[dict[str, list]]):
@@ -114,20 +127,24 @@ def main(log_paths: list[Path], output_filepath: Path, trial_offset: int, trim_b
         List of booleans (or 0, 1) to indicate which log files to trim the final trial 
         and calibration.
     adjust_rec_num: bool = False
-        TODO: Flag to indicate if the recording numbers must be adjusted as well.
+        Flag to indicate if the recording numbers must be adjusted as well.
     """
-    # For P20:
     logs = get_logs(log_paths)
     # Get the datetime strings for each log
     time_strs = [log["header"]["date"] for log in logs]
+    # Get the offsets
     t_offset = get_time_offset(time_strs)
-    # Take the trials from 2nd log:
-    #   adjust all the trial numbers by 30
-    #   adjust all the start, end, and instruction times by the time offset
+    if adjust_rec_num:
+        rec_offset = get_recording_offset(logs[0])
+    else:
+        rec_offset = 0
     for record in _RECORD_NAMES:
+        # Adjust all the trial numbers by the trial offset
+        # Adjust all the start, end, and instruction times by the time offset
+        # Adjust all the recording numbers by the recording offset
         calib = "calibration" in record
-        offset_record(logs[1][record], trial_offset, t_offset, calibration=calib)
-    # Remove the last trial and calibration from both logs
+        offset_record(logs[1][record], trial_offset, t_offset, rec_offset, calibration=calib)
+    # Remove the last trial and calibration from one or both logs
     for i, log in enumerate(logs):
         if trim_both or i == 0:
             remove_last_records(log)
@@ -135,12 +152,6 @@ def main(log_paths: list[Path], output_filepath: Path, trial_offset: int, trim_b
     complete_log = append_logs(logs)
     # Save new log file in the output folder
     save_log(output_filepath, complete_log)
-    # For P18
-    # Recording numbers need to be adjusted
-    #   in logs
-    #   in files
-    # Recordings need to be copied into a single folder
-    # The last calibration and trial DO NOT need to be removed from the 2nd set
 
 
 if __name__=="__main__":
