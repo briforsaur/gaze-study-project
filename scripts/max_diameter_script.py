@@ -38,7 +38,7 @@ def main(args: Args):
     logging.basicConfig(level=logging.INFO)
     variables = ("timestamp", "diameter_3d", "confidence")
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
-    participant_ids = ["P"+make_digit_str(i, 2) for i in range(1,31) if i not in (18, 20)]
+    participant_ids = ["P"+make_digit_str(i, 2) for i in range(1,31)]
     n_bins = 20
     max_val_hist = np.zeros((n_bins,2), dtype=np.int64)
     for participant_id in participant_ids:
@@ -47,16 +47,18 @@ def main(args: Args):
         participant_data, _ = d_import.get_resampled_participant_data(
             file_path, variables=variables, **hdf_path_info
         )
-        p_data_array = da.convert_to_array(participant_data)
-        da.normalize_pupil_diameter(p_data_array)
-        da.remove_low_confidence(p_data_array)
-        max_values = da.get_max_values(p_data_array["diameter_3d"])
+        p_data_arraydict = da.convert_to_array(participant_data)
+        max_values = {}
+        for task, p_data_array in p_data_arraydict.items():
+            da.normalize_pupil_diameter(p_data_array)
+            da.remove_low_confidence(p_data_array)
+            max_values.update({task: da.get_max_values(p_data_array["diameter_3d"])})
         for eye in (0,1):
-            for task in (0,1):
+            for i, task in enumerate(max_values.keys()):
                 max_val_hist_vals, bin_edges = np.histogram(
-                    max_values[:,eye,task], bins=n_bins, range=(0,0.5)
+                    max_values[task][:,eye], bins=n_bins, range=(0,0.5)
                 )
-                max_val_hist[:,task] += max_val_hist_vals
+                max_val_hist[:,i] += max_val_hist_vals
     # Find pupil diameter increase that maximally separates the classes
     split = da.calc_split(max_val_hist, bin_edges)
     print(f"Split: {split}")

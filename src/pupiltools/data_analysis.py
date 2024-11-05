@@ -190,33 +190,37 @@ def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
     return max_length
 
 
-def convert_to_array(participant_data: list[dict[str, dict | np.ndarray]]) -> np.ndarray:
+def convert_to_array(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[str, np.ndarray]:
     """Converts a list of task metadata and data to a single numpy array
 
     Returns
     -------
-    numpy.ndarray
-        A structured Nx60x2x2 array, where the first index is the sample number up to N 
-        (the maximum length of any of the data series), the second index is the task
-        number, in order, for a given task, the third index is the eye ID (0 for right,
+    dict[str, numpy.ndarray]
+        A dictionary of structured NxN_tasksx2 array, where the first index is the 
+        sample number up to N (the maximum length of any of the data series), the 
+        second index is the task number, in order, for a given task (usually 60, with
+        a couple of exceptions), the third index is the eye ID (0 for right,
         1 for left), and the fourth index is the task type (0 for action, 1 for 
         observation). For example, output[:, 0, 0, 1] is all samples for the first 
         observation trial, for the right eye. All trial data series that are shorter 
         than the longest series are padded with np.nan.
     """
     N_max = get_max_data_length(participant_data)
-    task_map = {"action": 0, "observation": 1}
+    N_task = count_tasks(participant_data)
     input_dtype = participant_data[0]["data"].dtype
-    data_array = np.full((N_max, 60, 2, 2), fill_value=np.nan, dtype=input_dtype)
-    i_tasks = [0, 0]
+    array_dict = {
+        "action": np.full((N_max, N_task["action"], 2), fill_value=np.nan, dtype=input_dtype),
+        "observation": np.full((N_max, N_task["observation"], 2), fill_value=np.nan, dtype=input_dtype),
+    }
+    i_tasks = {"action": 0, "observation": 0}
     for data_group in participant_data:
-        task_index = task_map[data_group["attributes"]["task"]]
+        task = data_group["attributes"]["task"]
         trial_length = data_group["data"].shape[0]
-        i = i_tasks[task_index]
+        i = i_tasks[task]
         for n_eye in (0, 1):
-            data_array[0:trial_length, i, n_eye, task_index] = data_group["data"][:,n_eye]
-        i_tasks[task_index] += 1
-    return data_array
+            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:,n_eye]
+        i_tasks[task] += 1
+    return array_dict
 
 
 def get_trendlines_by_task(data_array):
@@ -230,10 +234,10 @@ def get_trendlines_by_task(data_array):
 
 def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
     """Normalize the input data to a mean of 0 for the first t_baseline seconds"""
-    t = pupil_data["timestamp"][:,0,0,0]
+    t = pupil_data["timestamp"][:,0,0]
     i_baseline = np.max(np.nonzero(t < t_baseline))
     d = pupil_data["diameter_3d"]
-    pupil_data["diameter_3d"] = d / np.mean(d[:i_baseline,:,:,:], axis=0) - 1.0
+    pupil_data["diameter_3d"] = d / np.mean(d[:i_baseline,:,:], axis=0) - 1.0
 
 
 def remove_low_confidence(data_array: np.ndarray):
@@ -263,6 +267,19 @@ def calc_split(class_distribution: np.ndarray, bin_edges: np.ndarray) -> tuple[f
         else:
             break
     return split
+
+
+def count_tasks(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[str, int]:
+    """Count the number of times each task type appears in the dataset.
+    
+    Although the number of tasks is balanced at 60 each for most datasets, there are 
+    rare exceptions where a trial was restarted and a perfect balance is not guaranteed.
+    """
+    n = {"action": 0, "observation": 0}
+    for trial_data in participant_data:
+        task = trial_data["attributes"]["task"]
+        n[task] += 1
+    return n
 
 
 if __name__ == "__main__":
