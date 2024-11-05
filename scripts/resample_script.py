@@ -27,10 +27,10 @@ def get_args() -> Args:
         "data_path", type=Path, help="Path to directory containing the HDF files."
     )
     parser.add_argument(
-        "--fig_path", type=Path, help="Path to store output figures."
+        "T_resample", type=float, help="Sample time interval to create from resample."
     )
     parser.add_argument(
-        "--T_resample", type=float, help="Sample time interval to create from resample."
+        "--fig_path", type=Path, default=None, help="Path to store output figures."
     )
     parser.add_argument(
         "--show_plot", action="store_true", help="Show result in interactive window"
