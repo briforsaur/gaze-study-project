@@ -237,12 +237,11 @@ def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
     t = pupil_data["timestamp"][:,0,0]
     i_baseline = np.max(np.nonzero(t < t_baseline))
     d = pupil_data["diameter_3d"]
-    pupil_data["diameter_3d"] = d / np.mean(d[:i_baseline,:,:], axis=0) - 1.0
+    pupil_data["diameter_3d"] = d / np.nanmean(d[:i_baseline,:,:], axis=0) - 1.0
 
 
 def remove_low_confidence(data_array: np.ndarray):
-    fields_to_keep = ("timestamp", "confidence")
-    data_fields = [name for name in data_array.dtype.names if name not in fields_to_keep]
+    data_fields = get_other_fields(("timestamp", "confidence"), data_array.dtype)
     confidence = data_array["confidence"]
     low_conf_index = np.where(confidence < 0.6)
     data_array[data_fields][low_conf_index] = np.nan
@@ -280,6 +279,38 @@ def count_tasks(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[st
         task = trial_data["attributes"]["task"]
         n[task] += 1
     return n
+
+
+def interpolate_nan(data_array: np.ndarray):
+    """Linearly interpolate data where it is NaN
+    
+    All fields except for "timestamp" and "confidence" are checked for NaNs. NaNs 
+    surrounded by non-NaN data are filled in with linear interpolation. NaNs with no
+    preceding non-NaN data (e.g. at the start of the array) are filled in with the first
+    non-NaN value. NaNs with no following non-NaN data (e.g. at the end of the array)
+    are replaced with the last non-NaN value, unless they extend past the defined end
+    of the recording (where timestamps are NaN).
+    """
+    data_fields = get_other_fields(("timestamp", "confidence"), data_array.dtype)
+    for data_field in data_fields:
+        for i_trial in range(data_array.shape[1]):
+            for i_eye in range(data_array.shape[2]):
+                t = data_array["timestamp"][:, i_trial, i_eye]
+                data = data_array[data_field][:, i_trial, i_eye]
+                # Since recordings shorter than the longest recording are padded with 
+                # nans, we need to avoid interpolating after the end of the recording
+                non_nan = ~np.isnan(t)
+                t = t[non_nan]
+                y: np.ndarray = data[non_nan]
+                nans = np.isnan(y)
+                if t[~nans].size != 0:
+                    y[nans] = np.interp(t[nans], t[~nans], y[~nans])
+                data[non_nan] = y
+
+
+def get_other_fields(fields: list, dtype: np.dtype) -> list:
+    """Get all the fields in a numpy structured array other than the ones given"""
+    return [name for name in dtype.names if name not in fields]
 
 
 if __name__ == "__main__":

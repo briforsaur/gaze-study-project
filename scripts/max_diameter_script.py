@@ -50,9 +50,12 @@ def main(args: Args):
         p_data_arraydict = da.convert_to_array(participant_data)
         max_values = {}
         for task, p_data_array in p_data_arraydict.items():
-            da.normalize_pupil_diameter(p_data_array)
             da.remove_low_confidence(p_data_array)
+            da.interpolate_nan(p_data_array)
+            da.normalize_pupil_diameter(p_data_array)
             max_values.update({task: da.get_max_values(p_data_array["diameter_3d"])})
+            if np.any(np.isnan(max_values[task])):
+                logger.warning(f"All NaNs for {participant_id}, task '{task}'")
         for eye in (0,1):
             for i, task in enumerate(max_values.keys()):
                 max_val_hist_vals, bin_edges = np.histogram(
