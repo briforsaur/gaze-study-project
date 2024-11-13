@@ -237,13 +237,32 @@ def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
     t = pupil_data["timestamp"][:,0,0]
     i_baseline = np.max(np.nonzero(t < t_baseline))
     d = pupil_data["diameter_3d"]
-    pupil_data["diameter_3d"] = d / np.nanmean(d[:i_baseline,:,:], axis=0) - 1.0
+    d_mean = np.nanmean(d[:i_baseline,:,:], axis=0)
+    if np.any(np.isnan(d_mean)):
+        # Sometimes the entire baseline has low confidence, resulting in a NaN mean.
+        # Replace the NaN means by the mean of all baselines across all trials for each
+        # eye.
+        d_mean_by_eye = np.nanmean(d[:i_baseline,:,:], axis=(0, 1))
+        d_mean = np.where(np.isnan(d_mean), d_mean_by_eye, d_mean)
+    pupil_data["diameter_3d"] = d / d_mean - 1.0
 
 
-def remove_low_confidence(data_array: np.ndarray):
-    data_fields = get_other_fields(("timestamp", "confidence"), data_array.dtype)
+def remove_low_confidence(data_array: np.ndarray, confidence_threshold: float = 0.6):
+    """Replace low-confidence data in dataset with NaN
+
+    Parameters
+    ----------
+    data_array: numpy.ndarray
+        A structured array with fields based on the pupil datatype. This array is 
+        modified in-place. All fields except for "timestamp", "confidence", and
+        "world_index" will be affected.
+    confidence_threshold: float = 0.6
+        The confidence value below which data is replaced by NaN. Must be between 0 and 
+        1.
+    """
+    data_fields = get_other_fields(("timestamp", "confidence", "world_index"), data_array.dtype)
     confidence = data_array["confidence"]
-    low_conf_index = np.where(confidence < 0.6)
+    low_conf_index = np.where(confidence < confidence_threshold)
     data_array[data_fields][low_conf_index] = np.nan
 
 def get_max_values(data_array: np.ndarray) -> np.ndarray:
