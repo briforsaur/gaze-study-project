@@ -273,3 +273,11 @@ def load_json_log(log_file_path: pathlib.Path) -> dict:
     with open(log_file_path, "r") as f:
         log_data = json.load(f)
     return log_data
+
+
+def save_processed_data(output_path: pathlib.Path, processed_data: dict[str, dict]):
+    with h5py.File(output_path, 'w') as f_root:
+        for key, tasks in processed_data.items():
+            p_group = f_root.create_group(key)
+            for task, task_data in tasks.items():
+                p_group.create_dataset(task, data=task_data)

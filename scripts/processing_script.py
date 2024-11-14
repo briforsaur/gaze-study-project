@@ -1,5 +1,6 @@
 import pupiltools.data_import as d_import
 import pupiltools.data_analysis as da
+import pupiltools.export as d_export
 from pupiltools.utilities import make_digit_str
 
 from argparse import ArgumentParser
@@ -54,9 +55,11 @@ def main(data_path: Path, export_path: Path, confidence_threshold: float):
             da.interpolate_nan(p_data_array)
             da.normalize_pupil_diameter(p_data_array)
         processed_data.update(
-            {participant_id: copy.deepcopy(p_data_arraydict["action"])}
+            {participant_id: copy.deepcopy(p_data_arraydict)}
         )
-    # TODO: Save the processed data to a file
+    if not export_path.exists():
+        export_path.mkdir()
+    d_export.save_processed_data(export_path / "processed_data.hdf5", processed_data)
 
 
 if __name__ == "__main__":
