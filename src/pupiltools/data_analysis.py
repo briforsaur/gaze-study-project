@@ -1,6 +1,7 @@
 from numpy import typing as npt
 from numpy.lib import recfunctions as rfn
 import numpy as np
+import scipy.signal as sig
 from .aliases import RawParticipantDataType, TrialDataType, ResampledParticipantDataType, pupil_datatype
 
 
@@ -330,6 +331,14 @@ def interpolate_nan(data_array: np.ndarray):
 def get_other_fields(fields: list, dtype: np.dtype) -> list:
     """Get all the fields in a numpy structured array other than the ones given"""
     return [name for name in dtype.names if name not in fields]
+
+
+def filter_signal(x: np.ndarray, f_s: float, f_c: float) -> np.ndarray:
+    order = 3
+    ftype = "butter"
+    sos = sig.iirfilter(order, Wn=f_c, fs=f_s, btype="lowpass", output="sos", ftype=ftype)
+    x_filt = sig.sosfilt(sos, x, axis=0)
+    return x_filt
 
 
 if __name__ == "__main__":

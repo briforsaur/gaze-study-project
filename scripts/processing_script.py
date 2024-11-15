@@ -54,7 +54,9 @@ def main(data_path: Path, export_path: Path, confidence_threshold: float):
             da.remove_low_confidence(p_data_array, confidence_threshold)
             da.interpolate_nan(p_data_array)
             da.normalize_pupil_diameter(p_data_array)
-            # TODO: apply 5 Hz filter to pupil data
+            p_data_array["diameter_3d"] = da.filter_signal(
+                p_data_array["diameter_3d"], f_s=100, f_c = 5
+            )
         processed_data.update(
             {participant_id: copy.deepcopy(p_data_arraydict)}
         )
