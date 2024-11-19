@@ -263,8 +263,9 @@ def remove_low_confidence(data_array: np.ndarray, confidence_threshold: float = 
     """
     data_fields = get_other_fields(("timestamp", "confidence", "world_index"), data_array.dtype)
     confidence = data_array["confidence"]
-    low_conf_index = np.where(confidence < confidence_threshold)
+    low_conf_index = np.nonzero(confidence < confidence_threshold)
     data_array[data_fields][low_conf_index] = np.nan
+
 
 def get_max_values(data_array: np.ndarray) -> np.ndarray:
     return np.nanmax(data_array, axis=0)
