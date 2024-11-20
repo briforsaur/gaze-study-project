@@ -2,7 +2,12 @@ from numpy import typing as npt
 from numpy.lib import recfunctions as rfn
 import numpy as np
 import scipy.signal as sig
+from sklearn.impute import SimpleImputer
+import logging
 from .aliases import RawParticipantDataType, TrialDataType, ResampledParticipantDataType, pupil_datatype
+
+
+logger = logging.getLogger(__name__)
 
 
 def calc_deltas(array: np.ndarray) -> np.ndarray:
@@ -342,7 +347,34 @@ def filter_signal(x: np.ndarray, f_s: float, f_c: float) -> np.ndarray:
     return x_filt
 
 
+def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
+    v_data = np.full_like(data, fill_value=0.0)
+    v_data[1:-1] = (data[1:-1] - data[0:-2])/dt
+    return v_data
+
+
+def get_features(data: np.ndarray, dt: float = 0.01) -> np.ndarray:
+    v_data = calc_rate_of_change(data, dt)
+    feature_list = (
+        np.nanmean(data, axis=0),
+        np.nanmax(data, axis=0),
+        np.nanmean(v_data, axis=0),
+        np.nanmax(v_data, axis=0),
+    )
+    features = np.concat(feature_list, axis=1)
+    return features
+
+
+def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
+    total_nan = np.sum(np.isnan(feature_array))
+    logger.info(f"Imputing {total_nan} missing values.")
+    mean_imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
+    feature_array = mean_imputer.fit_transform(feature_array)
+    return feature_array
+
+
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     test_array = np.array([1, 2, 4, -1, 7])
     delta_array = calc_deltas(test_array)
     assert np.all(delta_array == np.array([1, 2, -5, 8]))

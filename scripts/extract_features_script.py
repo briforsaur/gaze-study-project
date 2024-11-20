@@ -2,11 +2,11 @@ from argparse import ArgumentParser
 from pathlib import Path
 import h5py
 import numpy as np
-from sklearn.impute import SimpleImputer
 import logging
 from datetime import datetime
 
 from pupiltools.utilities import make_digit_str
+from pupiltools.data_analysis import get_features, impute_missing_values
 
 
 logger = logging.getLogger(__name__)
@@ -24,32 +24,6 @@ def get_args():
         "export_path", type=Path, help="Path to directory to save the feature data."
     )
     return parser.parse_args()
-
-
-def get_features(data: np.ndarray, dt: float = 0.01) -> np.ndarray:
-    v_data = calc_rate_of_change(data, dt)
-    feature_list = (
-        np.nanmean(data, axis=0),
-        np.nanmax(data, axis=0),
-        np.nanmean(v_data, axis=0),
-        np.nanmax(v_data, axis=0),
-    )
-    features = np.concat(feature_list, axis=1)
-    return features
-
-
-def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
-    v_data = np.full_like(data, fill_value=0.0)
-    v_data[1:-1] = (data[1:-1] - data[0:-2])/dt
-    return v_data
-
-
-def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
-    total_nan = np.sum(np.isnan(feature_array))
-    logger.info(f"Imputing {total_nan} missing values.")
-    mean_imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
-    feature_array = mean_imputer.fit_transform(feature_array)
-    return feature_array
 
 
 def main(data_filepath: Path, export_path: Path):
@@ -72,6 +46,10 @@ def main(data_filepath: Path, export_path: Path):
                     feature_array = np.concat((feature_array, labelled_features), axis=0)
             feature_array = impute_missing_values(feature_array)
             features.update({participant_id: feature_array})
+    if not export_path.exists():
+        export_path.mkdir()
+    export_filepath = export_path / "feature_data.npz"
+    np.savez(file=export_filepath, **features)
                 
 
 
