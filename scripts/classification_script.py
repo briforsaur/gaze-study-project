@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from numpy.lib.npyio import NpzFile
 import numpy as np
+import pickle
 from sklearn.neural_network import MLPClassifier
 
 from pupiltools.utilities import make_digit_str
@@ -33,6 +34,7 @@ def main(data_filepath: Path, results_path: Path):
         # Train model
         clf = MLPClassifier(max_iter=1000, learning_rate="adaptive")
         clf.fit(train_features, train_labels)
+        save_model(clf, path=(results_path / f"models/{p_id}_left_out.pickle"))
         # Get final training metrics
         train_output = clf.predict(train_features)
         train_stats = calc_performance_stats(train_output, train_labels)
@@ -73,6 +75,12 @@ def calc_performance_stats(outputs: np.ndarray, labels: np.ndarray) -> tuple[flo
     true_negative_rate = true_negatives/negative_pop
     return accuracy, true_positive_rate, true_negative_rate
 
+
+def save_model(model, path: Path):
+    if not path.parent.exists():
+        path.parent.mkdir()
+    with open(path, 'wb') as f:
+        pickle.dump(model, file=f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == "__main__":
