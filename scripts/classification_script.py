@@ -27,7 +27,8 @@ def main(data_filepath: Path, results_path: Path):
         # Split data into training and validation (leave one out)
         training_ids = [p for p in participants if p is not p_id]
         # Split data into testing and training features and class labels
-        train_features, train_labels = get_class_data(class_data_file, training_ids)
+        rng = np.random.default_rng()
+        train_features, train_labels = get_class_data(class_data_file, training_ids, rng)
         test_features, test_labels = get_class_data(class_data_file, (p_id,))
         # Train model
         clf = MLPClassifier(max_iter=1000, learning_rate="adaptive")
@@ -44,11 +45,13 @@ def main(data_filepath: Path, results_path: Path):
         print(f"Testing:\nAccuracy: {test_stats[0]:.3f}   TPR: {test_stats[1]:.3f}   TNR: {test_stats[2]:.3f}")
 
 
-def get_class_data(class_data_file: NpzFile, ids: list[str]) -> tuple[np.ndarray]:
+def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None) -> tuple[np.ndarray]:
     feature_data = None
     label_data = None
     for id in ids:
         participant_data = class_data_file[id]
+        if rng is not None:
+            rng.shuffle(participant_data, axis=0)
         features = participant_data[:, :-1]
         labels = participant_data[:, -1].astype(np.int64)
         if feature_data is None:
