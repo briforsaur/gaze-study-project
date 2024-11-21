@@ -358,7 +358,7 @@ def get_features(data: np.ndarray, dt: float = 0.01) -> np.ndarray:
     feature_list = (
         np.nanmean(data, axis=0),
         np.nanmax(data, axis=0),
-        np.nanmean(v_data, axis=0),
+        np.nanmean(np.abs(v_data), axis=0),
         np.nanmax(v_data, axis=0),
     )
     features = np.concat(feature_list, axis=1)

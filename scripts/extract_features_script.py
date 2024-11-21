@@ -27,7 +27,7 @@ def get_args():
 
 def main(data_filepath: Path, export_path: Path):
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
-    variables = ("timestamp", "confidence", "diameter_3d", "theta", "phi")
+    variables = ("timestamp", "confidence", "diameter_3d")
     features = {}
     with h5py.File(data_filepath, mode='r') as f_root:
         for participant_id in participants:
