@@ -2,7 +2,7 @@ import numpy as np
 from typing import Generic, TypeVar
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure as mpl_fig
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 
@@ -61,6 +61,23 @@ def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | list[
         fig.savefig(full_path)
         if verbose:
             print(f"Saved figure: {full_path}")
+
+
+def get_datetime() -> str:
+    """Get a string of the current date and time in a filename-friendly format
+    
+    Returns
+    -------
+    The current date and time up to the second in YYYY-MM-DDTHH_mm_ss format. This is
+    almost the same as ISO 8601 date and time format, but the colons (":") in the time
+    part have been replaced with underscores so the string can be used in a filename.
+
+    Examples
+    --------
+    If the date is September 21, 2024 and the time is 2:13:23 pm, the output would be:
+    2024-09-21T_14_13_23
+    """
+    return datetime.now().strftime(r"%Y-%m-%dT%H_%M_%S")
 
 
 # Helper class used as a type for matplotlib arrays of Axes

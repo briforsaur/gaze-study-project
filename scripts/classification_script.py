@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 from sklearn.neural_network import MLPClassifier
 
-from pupiltools.utilities import make_digit_str
+from pupiltools.utilities import make_digit_str, get_datetime
 
 
 def get_args():
@@ -20,6 +20,7 @@ def get_args():
 
 
 def main(data_filepath: Path, results_path: Path):
+    results_path = results_path / get_datetime()
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
     # Load feature data file
     class_data_file = np.load(data_filepath)

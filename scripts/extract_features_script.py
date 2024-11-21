@@ -3,9 +3,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 import logging
-from datetime import datetime
 
-from pupiltools.utilities import make_digit_str
+from pupiltools.utilities import make_digit_str, get_datetime
 from pupiltools.data_analysis import get_features, impute_missing_values
 
 
@@ -55,6 +54,6 @@ def main(data_filepath: Path, export_path: Path):
 
 if __name__=="__main__":
     args = get_args()
-    now = datetime.now().strftime(r"%Y-%m-%dT%H_%M_%S")
+    now = get_datetime()
     logging.basicConfig(filename=f"logs/{now}_feature_extract.log", filemode='w', level=logging.INFO)
     main(**vars(args))
