@@ -49,24 +49,69 @@ def main(data_filepath: Path, results_path: Path):
 
 
 def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None) -> tuple[np.ndarray]:
-    feature_data = None
-    label_data = None
+    """Extract labelled feature data from a .npz file
+    
+    Parameters
+    ----------
+    class_data_file: numpy.lib.npyio.NpzFile
+        An NpzFile object returned by numpy.load containing a set of arrays of labelled 
+        feature data for each participant. Each array is expected to be of shape
+        (n_samples, n_features + 1), such that the last column contains the label data.
+        The label data is expected to be cast-able to the integer type.
+    ids: list[str]
+        A list of identifiers for the arrays to be extracted from the npz file.
+    rng: np.random.Generator, optional
+        A numpy random number generator used to shuffle all the rows of the extracted
+        data, ensuring a random sample order while keeping features grouped with the 
+        corresponding labels. If this is not provided, the samples will be in order of
+        the identifiers provided and the order they were in the original arrays.
+    
+    Returns
+    -------
+    feature_data: numpy.ndarray
+        An array of shape (N, n_features) containing the features for all samples in
+        the extracted arrays, where N is the sum of all n_samples from all arrays. The 
+        samples may be randomized if an rng was provided.
+    label_data: numpy.ndarray
+        An array of shape (N,) containing the labels for all samples in the extracted
+        arrays. Each label element i corresponds to row i of the feature_data array.
+    """
+    labelled_feature_data = None
     for id in ids:
         participant_data = class_data_file[id]
-        if rng is not None:
-            rng.shuffle(participant_data, axis=0)
-        features = participant_data[:, :-1]
-        labels = participant_data[:, -1].astype(np.int64)
-        if feature_data is None:
-            feature_data = features
-            label_data = labels
+        if labelled_feature_data is None:
+            labelled_feature_data = participant_data
         else:
-            feature_data = np.concat((feature_data, features), axis=0)
-            label_data = np.concat((label_data, labels), axis=0)
-    return feature_data, label_data
+            labelled_feature_data = np.concat(
+                (labelled_feature_data, participant_data), axis=0
+            )
+    if rng is not None:
+        rng.shuffle(labelled_feature_data, axis=0)
+    return labelled_feature_data[:,:-1], labelled_feature_data[:,-1].astype(np.int64)
 
 
 def calc_performance_stats(outputs: np.ndarray, labels: np.ndarray) -> tuple[float]:
+    """Calculate the accuracy, sensitivity, and specificity of a classifier's output
+    
+    Parameters
+    ----------
+    outputs: numpy.ndarray
+        An array of shape (n_samples,) of the output from a binary classifier, where 
+        each element is 0 (for the negative class) or 1 (for the positive class).
+    labels: numpy.ndarray
+        An array of shape (n_samples,) of the true class labels for the samples.
+    
+    Returns
+    -------
+    accuracy: float
+        The accuracy of the classifier (total correct classes divided by n_samples).
+    sensitivity: float
+        The sensitivity or true positive rate of the classifier (total positive outputs
+        divided by the number of actual positives).
+    specificity: float
+        The specificity or true negative rate of the classifier (total negative outputs
+        divided by the number of actual negatives).
+    """
     positive_pop = np.sum(labels)
     negative_pop = labels.size - positive_pop
     accuracy = np.sum(outputs == labels)/labels.size
@@ -78,6 +123,16 @@ def calc_performance_stats(outputs: np.ndarray, labels: np.ndarray) -> tuple[flo
 
 
 def save_model(model, path: Path):
+    """Pickle a Python object as bytes
+    
+    Parameters
+    ----------
+    model: Any
+        Any python object, but intended to be a neural network or other model generated
+        by scikit-learn.
+    path: pathlib.Path
+        A full path to the desired file to write.
+    """
     if not path.parent.exists():
         path.parent.mkdir()
     with open(path, 'wb') as f:
