@@ -44,13 +44,13 @@ def main(data_filepath: Path, results_path: Path):
         train_acc = accuracy_score(train_labels, train_output)
         train_f1 = f1_score(train_labels, train_output)
         print(f"\n{p_id} Results")
-        print(f"Training Accuracy: {train_acc:.3f}")
+        print(f"Training Accuracy: {train_acc:.3f}   Training F1: {train_f1:.3f}")
         # Test model on left out data
         test_output = clf.predict(test_features)
         # Get final test metrics
         test_acc = accuracy_score(test_labels, test_output)
         test_f1 = f1_score(test_labels, test_output)
-        print(f"Testing Accuracy: {test_acc:.3f}")
+        print(f"Testing Accuracy: {test_acc:.3f}   Testing F1: {test_f1:.3f}")
 
 
 def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None) -> tuple[np.ndarray]:
