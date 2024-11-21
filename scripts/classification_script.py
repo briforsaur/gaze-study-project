@@ -3,6 +3,7 @@ from pathlib import Path
 from numpy.lib.npyio import NpzFile
 import numpy as np
 import pickle
+import json
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
@@ -27,13 +28,16 @@ def main(data_filepath: Path, results_path: Path):
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
     # Load feature data file
     class_data_file = np.load(data_filepath)
+    classification_results = {}
     # For all participants
     for p_id in participants:
         # Split data into training and validation (leave one out)
         training_ids = [p for p in participants if p is not p_id]
         # Split data into testing and training features and class labels
         rng = np.random.default_rng()
-        train_features, train_labels = get_class_data(class_data_file, training_ids, rng)
+        train_features, train_labels = get_class_data(
+            class_data_file, training_ids, rng
+        )
         test_features, test_labels = get_class_data(class_data_file, (p_id,))
         # Train model
         clf = MLPClassifier(max_iter=1000, learning_rate="adaptive")
@@ -51,15 +55,26 @@ def main(data_filepath: Path, results_path: Path):
         test_acc = accuracy_score(test_labels, test_output)
         test_f1 = f1_score(test_labels, test_output)
         print(f"Testing Accuracy: {test_acc:.3f}   Testing F1: {test_f1:.3f}")
+        classification_results.update(
+            {
+                p_id: {
+                    "train": {"labels": train_labels.tolist(), "output": train_output.tolist()},
+                    "test": {"labels": test_labels.tolist(), "output": test_output.tolist()},
+                }
+            }
+        )
+    save_as_json(classification_results, path=(results_path / "results.json"))
 
 
-def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None) -> tuple[np.ndarray]:
+def get_class_data(
+    class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None
+) -> tuple[np.ndarray]:
     """Extract labelled feature data from a .npz file
-    
+
     Parameters
     ----------
     class_data_file: numpy.lib.npyio.NpzFile
-        An NpzFile object returned by numpy.load containing a set of arrays of labelled 
+        An NpzFile object returned by numpy.load containing a set of arrays of labelled
         feature data for each participant. Each array is expected to be of shape
         (n_samples, n_features + 1), such that the last column contains the label data.
         The label data is expected to be cast-able to the integer type.
@@ -67,15 +82,15 @@ def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Gene
         A list of identifiers for the arrays to be extracted from the npz file.
     rng: np.random.Generator, optional
         A numpy random number generator used to shuffle all the rows of the extracted
-        data, ensuring a random sample order while keeping features grouped with the 
+        data, ensuring a random sample order while keeping features grouped with the
         corresponding labels. If this is not provided, the samples will be in order of
         the identifiers provided and the order they were in the original arrays.
-    
+
     Returns
     -------
     feature_data: numpy.ndarray
         An array of shape (N, n_features) containing the features for all samples in
-        the extracted arrays, where N is the sum of all n_samples from all arrays. The 
+        the extracted arrays, where N is the sum of all n_samples from all arrays. The
         samples may be randomized if an rng was provided.
     label_data: numpy.ndarray
         An array of shape (N,) containing the labels for all samples in the extracted
@@ -92,12 +107,12 @@ def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Gene
             )
     if rng is not None:
         rng.shuffle(labelled_feature_data, axis=0)
-    return labelled_feature_data[:,:-1], labelled_feature_data[:,-1].astype(np.int64)
+    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64)
 
 
 def save_model(model, path: Path):
     """Pickle a Python object as bytes
-    
+
     Parameters
     ----------
     model: Any
@@ -108,8 +123,12 @@ def save_model(model, path: Path):
     """
     if not path.parent.exists():
         path.parent.mkdir()
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         pickle.dump(model, file=f, protocol=pickle.HIGHEST_PROTOCOL)
+
+def save_as_json(results, path: Path):
+    with open(path, "w") as f:
+        json.dump(results, f, indent=4)
 
 
 if __name__ == "__main__":
