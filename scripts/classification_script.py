@@ -4,6 +4,7 @@ from numpy.lib.npyio import NpzFile
 import numpy as np
 import pickle
 from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, f1_score
 
 from pupiltools.utilities import make_digit_str, get_datetime
 
@@ -21,6 +22,8 @@ def get_args():
 
 def main(data_filepath: Path, results_path: Path):
     results_path = results_path / get_datetime()
+    if not results_path.exists():
+        results_path.mkdir()
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
     # Load feature data file
     class_data_file = np.load(data_filepath)
@@ -38,14 +41,16 @@ def main(data_filepath: Path, results_path: Path):
         save_model(clf, path=(results_path / f"models/{p_id}_left_out.pickle"))
         # Get final training metrics
         train_output = clf.predict(train_features)
-        train_stats = calc_performance_stats(train_output, train_labels)
+        train_acc = accuracy_score(train_labels, train_output)
+        train_f1 = f1_score(train_labels, train_output)
         print(f"\n{p_id} Results")
-        print(f"Training:\nAccuracy: {train_stats[0]:.3f}   TPR: {train_stats[1]:.3f}   TNR: {train_stats[2]:.3f}")
+        print(f"Training Accuracy: {train_acc:.3f}")
         # Test model on left out data
         test_output = clf.predict(test_features)
         # Get final test metrics
-        test_stats = calc_performance_stats(test_output, test_labels)
-        print(f"Testing:\nAccuracy: {test_stats[0]:.3f}   TPR: {test_stats[1]:.3f}   TNR: {test_stats[2]:.3f}")
+        test_acc = accuracy_score(test_labels, test_output)
+        test_f1 = f1_score(test_labels, test_output)
+        print(f"Testing Accuracy: {test_acc:.3f}")
 
 
 def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None) -> tuple[np.ndarray]:
@@ -88,38 +93,6 @@ def get_class_data(class_data_file: NpzFile, ids: list[str], rng: np.random.Gene
     if rng is not None:
         rng.shuffle(labelled_feature_data, axis=0)
     return labelled_feature_data[:,:-1], labelled_feature_data[:,-1].astype(np.int64)
-
-
-def calc_performance_stats(outputs: np.ndarray, labels: np.ndarray) -> tuple[float]:
-    """Calculate the accuracy, sensitivity, and specificity of a classifier's output
-    
-    Parameters
-    ----------
-    outputs: numpy.ndarray
-        An array of shape (n_samples,) of the output from a binary classifier, where 
-        each element is 0 (for the negative class) or 1 (for the positive class).
-    labels: numpy.ndarray
-        An array of shape (n_samples,) of the true class labels for the samples.
-    
-    Returns
-    -------
-    accuracy: float
-        The accuracy of the classifier (total correct classes divided by n_samples).
-    sensitivity: float
-        The sensitivity or true positive rate of the classifier (total positive outputs
-        divided by the number of actual positives).
-    specificity: float
-        The specificity or true negative rate of the classifier (total negative outputs
-        divided by the number of actual negatives).
-    """
-    positive_pop = np.sum(labels)
-    negative_pop = labels.size - positive_pop
-    accuracy = np.sum(outputs == labels)/labels.size
-    true_positives = np.sum(outputs*labels)
-    true_positive_rate = true_positives/positive_pop
-    true_negatives = np.sum(np.logical_not(outputs)*np.logical_not(labels))
-    true_negative_rate = true_negatives/negative_pop
-    return accuracy, true_positive_rate, true_negative_rate
 
 
 def save_model(model, path: Path):
