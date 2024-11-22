@@ -18,10 +18,13 @@ def get_args():
     parser.add_argument(
         "results_path", type=Path, help="Path to directory to save the results."
     )
+    parser.add_argument(
+        "hidden_layer_sizes", type=int, nargs="*", help="List of hidden layer sizes"
+    )
     return parser.parse_args()
 
 
-def main(data_filepath: Path, results_path: Path):
+def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int]):
     results_path = results_path / get_datetime()
     if not results_path.exists():
         results_path.mkdir()
@@ -40,7 +43,7 @@ def main(data_filepath: Path, results_path: Path):
         )
         test_features, test_labels = get_class_data(class_data_file, (p_id,))
         # Train model
-        clf = MLPClassifier(max_iter=1000, learning_rate="adaptive")
+        clf = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=1000, learning_rate="adaptive")
         clf.fit(train_features, train_labels)
         save_model(clf, path=(results_path / f"models/{p_id}_left_out.pickle"))
         # Get final training metrics
