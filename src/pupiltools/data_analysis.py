@@ -4,7 +4,12 @@ import numpy as np
 import scipy.signal as sig
 from sklearn.impute import SimpleImputer
 import logging
-from .aliases import RawParticipantDataType, TrialDataType, ResampledParticipantDataType, pupil_datatype
+from .aliases import (
+    RawParticipantDataType,
+    TrialDataType,
+    ResampledParticipantDataType,
+    pupil_datatype,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -77,23 +82,31 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
     return dt_stats
 
 
-def resample_data(participant_data: RawParticipantDataType, dt: float) -> ResampledParticipantDataType:
+def resample_data(
+    participant_data: RawParticipantDataType, dt: float
+) -> ResampledParticipantDataType:
     """Resample all datasets for a list of participant data"""
     resampled_data = []
     for trial_data in participant_data:
         old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)]
-        t_start, t_stop, t_ins = get_key_times(old_t_arrays, trial_data["attributes"]["t_instruction"], dt)
+        t_start, t_stop, t_ins = get_key_times(
+            old_t_arrays, trial_data["attributes"]["t_instruction"], dt
+        )
         resampled_array = resample_trial(trial_data, t_start, t_stop, dt)
         keys = ("die", "recording", "task", "trial")
         resampled_attributes = {k: trial_data["attributes"][k] for k in keys}
-        resampled_attributes.update({"t_offset": t_start, "t_instruction": t_ins, "sample_time_interval": dt})
+        resampled_attributes.update(
+            {"t_offset": t_start, "t_instruction": t_ins, "sample_time_interval": dt}
+        )
         resampled_data.append(
             {"attributes": resampled_attributes, "data": resampled_array.copy()}
         )
     return resampled_data
 
 
-def resample_trial(trial_data: TrialDataType, t_start: float, t_stop: float, dt: float) -> np.ndarray:
+def resample_trial(
+    trial_data: TrialDataType, t_start: float, t_stop: float, dt: float
+) -> np.ndarray:
     """Resample the data for both eyes for a single trial
 
     Returns
@@ -101,7 +114,7 @@ def resample_trial(trial_data: TrialDataType, t_start: float, t_stop: float, dt:
     resampled_array: np.ndarray
         A structured NumPy array where each row corresponds to a single data sample, and
         each column corresponds to one of the eyes. For example, resampled_array[0,1] is
-        the first data sample (point) for eye 1, and resampled_array[:,0] is all data 
+        the first data sample (point) for eye 1, and resampled_array[:,0] is all data
         for eye 0.
     """
     t_array: npt.NDArray[np.float64] = np.arange(stop=t_stop, step=dt, dtype=np.float64)
@@ -117,11 +130,13 @@ def resample_trial(trial_data: TrialDataType, t_start: float, t_stop: float, dt:
     return resampled_array
 
 
-def get_key_times(time_arrays: list[npt.NDArray[np.float64]], t_instruction: float, dt: float) -> tuple[float, float, float]:
+def get_key_times(
+    time_arrays: list[npt.NDArray[np.float64]], t_instruction: float, dt: float
+) -> tuple[float, float, float]:
     t_start = min([time_arrays[eye][0] for eye in (0, 1)])
     t_end = min([time_arrays[eye][-1] for eye in (0, 1)])
     t_stop = round((t_end - t_start) / dt) * dt
-    t_ins = round((t_instruction - t_start)/dt)*dt
+    t_ins = round((t_instruction - t_start) / dt) * dt
     return t_start, t_stop, t_ins
 
 
@@ -196,27 +211,33 @@ def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
     return max_length
 
 
-def convert_to_array(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[str, np.ndarray]:
+def convert_to_array(
+    participant_data: list[dict[str, dict | np.ndarray]]
+) -> dict[str, np.ndarray]:
     """Converts a list of task metadata and data to a single numpy array
 
     Returns
     -------
     dict[str, numpy.ndarray]
-        A dictionary of structured NxN_tasksx2 array, where the first index is the 
-        sample number up to N (the maximum length of any of the data series), the 
+        A dictionary of structured NxN_tasksx2 array, where the first index is the
+        sample number up to N (the maximum length of any of the data series), the
         second index is the task number, in order, for a given task (usually 60, with
         a couple of exceptions), the third index is the eye ID (0 for right,
-        1 for left), and the fourth index is the task type (0 for action, 1 for 
-        observation). For example, output[:, 0, 0, 1] is all samples for the first 
-        observation trial, for the right eye. All trial data series that are shorter 
+        1 for left), and the fourth index is the task type (0 for action, 1 for
+        observation). For example, output[:, 0, 0, 1] is all samples for the first
+        observation trial, for the right eye. All trial data series that are shorter
         than the longest series are padded with np.nan.
     """
     N_max = get_max_data_length(participant_data)
     N_task = count_tasks(participant_data)
     input_dtype = participant_data[0]["data"].dtype
     array_dict = {
-        "action": np.full((N_max, N_task["action"], 2), fill_value=np.nan, dtype=input_dtype),
-        "observation": np.full((N_max, N_task["observation"], 2), fill_value=np.nan, dtype=input_dtype),
+        "action": np.full(
+            (N_max, N_task["action"], 2), fill_value=np.nan, dtype=input_dtype
+        ),
+        "observation": np.full(
+            (N_max, N_task["observation"], 2), fill_value=np.nan, dtype=input_dtype
+        ),
     }
     i_tasks = {"action": 0, "observation": 0}
     for data_group in participant_data:
@@ -224,31 +245,47 @@ def convert_to_array(participant_data: list[dict[str, dict | np.ndarray]]) -> di
         trial_length = data_group["data"].shape[0]
         i = i_tasks[task]
         for n_eye in (0, 1):
-            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:,n_eye]
+            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:, n_eye]
         i_tasks[task] += 1
     return array_dict
 
 
-def get_trendlines_by_task(data_array):
-    N_max = data_array.shape[0]
-    trendline_array = np.full((N_max, 2, 2, 3), fill_value=np.nan, dtype=np.float64)
-    trendline_array[:,:,:,0] = np.nanpercentile(data_array, (5), axis=1)
-    trendline_array[:,:,:,1] = np.mean(data_array, axis=1, where=~np.isnan(data_array))
-    trendline_array[:,:,:,2] = np.nanpercentile(data_array, (95), axis=1)
+def get_trendlines_by_task(data_array: np.ndarray):
+    """Get the mean, and 5th and 95th percentile of an array of task data
+
+    Parameters
+    ----------
+    data_array: numpy.ndarray
+        An N x N_task x ... array, where N is the number of samples in time and N_task
+        is the number of timeseries (number of tasks).
+
+    Returns
+    -------
+    trendline_array: numpy.ndarray
+        An N x ... x 3 array, where the first dimension is time, and the final dimension
+        is the three separate statistics calculated across all tasks for each instant in
+        time. The first entry in the final column is the 5th percentile, the second is
+        the mean, and the third is the 95th percentile.
+    """
+    trendline_shape = (*np.squeeze(data_array[:, 0, ...]).shape, 3)
+    trendline_array = np.full(trendline_shape, fill_value=np.nan, dtype=np.float64)
+    trendline_array[..., 0] = np.nanpercentile(data_array, (5), axis=1)
+    trendline_array[..., 1] = np.mean(data_array, axis=1, where=~np.isnan(data_array))
+    trendline_array[..., 2] = np.nanpercentile(data_array, (95), axis=1)
     return trendline_array
 
 
 def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
     """Normalize the input data to a mean of 0 for the first t_baseline seconds"""
-    t = pupil_data["timestamp"][:,0,0]
+    t = pupil_data["timestamp"][:, 0, 0]
     i_baseline = np.max(np.nonzero(t < t_baseline))
     d = pupil_data["diameter_3d"]
-    d_mean = np.nanmean(d[:i_baseline,:,:], axis=0)
+    d_mean = np.nanmean(d[:i_baseline, :, :], axis=0)
     if np.any(np.isnan(d_mean)):
         # Sometimes the entire baseline has low confidence, resulting in a NaN mean.
         # Replace the NaN means by the mean of all baselines across all trials for each
         # eye.
-        d_mean_by_eye = np.nanmean(d[:i_baseline,:,:], axis=(0, 1))
+        d_mean_by_eye = np.nanmean(d[:i_baseline, :, :], axis=(0, 1))
         d_mean = np.where(np.isnan(d_mean), d_mean_by_eye, d_mean)
     pupil_data["diameter_3d"] = d / d_mean - 1.0
 
@@ -259,14 +296,16 @@ def remove_low_confidence(data_array: np.ndarray, confidence_threshold: float = 
     Parameters
     ----------
     data_array: numpy.ndarray
-        A structured array with fields based on the pupil datatype. This array is 
+        A structured array with fields based on the pupil datatype. This array is
         modified in-place. All fields except for "timestamp", "confidence", and
         "world_index" will be affected.
     confidence_threshold: float = 0.6
-        The confidence value below which data is replaced by NaN. Must be between 0 and 
+        The confidence value below which data is replaced by NaN. Must be between 0 and
         1.
     """
-    data_fields = get_other_fields(("timestamp", "confidence", "world_index"), data_array.dtype)
+    data_fields = get_other_fields(
+        ("timestamp", "confidence", "world_index"), data_array.dtype
+    )
     confidence = data_array["confidence"]
     low_conf_index = np.nonzero(confidence < confidence_threshold)
     data_array[data_fields][low_conf_index] = np.nan
@@ -276,15 +315,17 @@ def get_max_values(data_array: np.ndarray) -> np.ndarray:
     return np.nanmax(data_array, axis=0)
 
 
-def calc_split(class_distribution: np.ndarray, bin_edges: np.ndarray) -> tuple[float, tuple[float, float]]:
+def calc_split(
+    class_distribution: np.ndarray, bin_edges: np.ndarray
+) -> tuple[float, tuple[float, float]]:
     # Find pupil diameter increase that maximally separates the classes
     # Brute force SVM solution based on squared hinge loss:
     min_loss = np.inf
     zeros = np.zeros_like(bin_edges[1:])
     for b in bin_edges[1:]:
-        y = 2*(bin_edges[0:-1] - b)/bin_edges[1] + 1
-        loss = class_distribution[:, 0]*(np.maximum(zeros, 1 - y)**2)
-        loss += class_distribution[:, 1]*(np.maximum(zeros, 1 + y)**2)
+        y = 2 * (bin_edges[0:-1] - b) / bin_edges[1] + 1
+        loss = class_distribution[:, 0] * (np.maximum(zeros, 1 - y) ** 2)
+        loss += class_distribution[:, 1] * (np.maximum(zeros, 1 + y) ** 2)
         loss = loss.sum()
         if loss < min_loss:
             min_loss = loss
@@ -296,8 +337,8 @@ def calc_split(class_distribution: np.ndarray, bin_edges: np.ndarray) -> tuple[f
 
 def count_tasks(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[str, int]:
     """Count the number of times each task type appears in the dataset.
-    
-    Although the number of tasks is balanced at 60 each for most datasets, there are 
+
+    Although the number of tasks is balanced at 60 each for most datasets, there are
     rare exceptions where a trial was restarted and a perfect balance is not guaranteed.
     """
     n = {"action": 0, "observation": 0}
@@ -309,8 +350,8 @@ def count_tasks(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[st
 
 def interpolate_nan(data_array: np.ndarray):
     """Linearly interpolate data where it is NaN
-    
-    All fields except for "timestamp" and "confidence" are checked for NaNs. NaNs 
+
+    All fields except for "timestamp" and "confidence" are checked for NaNs. NaNs
     surrounded by non-NaN data are filled in with linear interpolation. NaNs with no
     preceding non-NaN data (e.g. at the start of the array) are filled in with the first
     non-NaN value. NaNs with no following non-NaN data (e.g. at the end of the array)
@@ -323,7 +364,7 @@ def interpolate_nan(data_array: np.ndarray):
             for i_eye in range(data_array.shape[2]):
                 t = data_array["timestamp"][:, i_trial, i_eye]
                 data = data_array[data_field][:, i_trial, i_eye]
-                # Since recordings shorter than the longest recording are padded with 
+                # Since recordings shorter than the longest recording are padded with
                 # nans, we need to avoid interpolating after the end of the recording
                 non_nan = ~np.isnan(t)
                 t = t[non_nan]
@@ -342,14 +383,16 @@ def get_other_fields(fields: list, dtype: np.dtype) -> list:
 def filter_signal(x: np.ndarray, f_s: float, f_c: float) -> np.ndarray:
     order = 3
     ftype = "butter"
-    sos = sig.iirfilter(order, Wn=f_c, fs=f_s, btype="lowpass", output="sos", ftype=ftype)
+    sos = sig.iirfilter(
+        order, Wn=f_c, fs=f_s, btype="lowpass", output="sos", ftype=ftype
+    )
     x_filt = sig.sosfilt(sos, x, axis=0)
     return x_filt
 
 
 def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
     v_data = np.full_like(data, fill_value=0.0)
-    v_data[1:-1] = (data[1:-1] - data[0:-2])/dt
+    v_data[1:-1] = (data[1:-1] - data[0:-2]) / dt
     return v_data
 
 
