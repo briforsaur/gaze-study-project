@@ -12,10 +12,12 @@ def get_args():
     parser.add_argument(
         "data_filepath", type=Path, help="Path to the HDF file containing processed data."
     )
+    parser.add_argument(
+        "participant_id", type=str, help="Participant ID to be plotted."
+    )
     return parser.parse_args()
 
-def main(data_filepath: Path):
-    participant_id = "P23"
+def main(data_filepath: Path, participant_id: str):
     dt = 0.01
     tasks = ("action", "observation")
     variables = ("timestamp", "diameter_3d")
