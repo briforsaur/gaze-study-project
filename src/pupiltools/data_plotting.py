@@ -156,6 +156,12 @@ def plot_trendline_range(
     ax.set_ylabel(ylabel)
     if xlim is not None:
         ax.set_xlim(xlim)
+    ax.grid(visible=True, which="major")
+    vline_style = {"alpha": 0.8, "color": "k", "linestyle": "--"}
+    ax.axvline(x=1.0, **vline_style)
+    ax.axvline(x=2.5, **vline_style)
+    ax.text(x=1.0, y=Y.max()*0.8, s="Instruction Start", horizontalalignment="right", verticalalignment="top", rotation="vertical")
+    ax.text(x=2.5, y=Y.max()*0.8, s="Instruction End", horizontalalignment="right", verticalalignment="top", rotation="vertical")
 
 
 def plot_max_values(max_values: dict[str, np.ndarray]):
