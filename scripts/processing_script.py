@@ -34,10 +34,16 @@ def get_args() -> Args:
         help="Eye tracker confidence value below which data is discarded.",
         default=0.6,
     )
+    parser.add_argument(
+        "--f_c",
+        type=float,
+        help="Low-pass filter cutoff frequency.",
+        default=5,
+    )
     return parser.parse_args()
 
 
-def main(data_path: Path, export_path: Path, confidence_threshold: float):
+def main(data_path: Path, export_path: Path, confidence_threshold: float, f_c: float = 5):
     logging.basicConfig(level=logging.INFO)
     variables = ("timestamp", "confidence", "diameter_3d", "theta", "phi")
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
@@ -55,14 +61,14 @@ def main(data_path: Path, export_path: Path, confidence_threshold: float):
             da.interpolate_nan(p_data_array)
             da.normalize_pupil_diameter(p_data_array)
             p_data_array["diameter_3d"] = da.filter_signal(
-                p_data_array["diameter_3d"], f_s=100, f_c = 5
+                p_data_array["diameter_3d"], f_s=100, f_c = f_c
             )
         processed_data.update(
             {participant_id: copy.deepcopy(p_data_arraydict)}
         )
     if not export_path.exists():
         export_path.mkdir()
-    d_export.save_processed_data(export_path / "processed_data.hdf5", processed_data)
+    d_export.save_processed_data(export_path / f"processed_data_f{round(f_c):.0f}.hdf5", processed_data)
 
 
 if __name__ == "__main__":
