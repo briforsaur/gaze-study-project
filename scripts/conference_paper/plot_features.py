@@ -50,6 +50,7 @@ def main(data_filepath: Path, fig_path: Path):
         n_eye = i % 2
         n_feature = i // 2
         ax.set_xlabel(f"{feature_labels[n_feature]} of Eye {n_eye} [{feature_units[n_feature]}]")
+        ax.legend()
         if fig_path is not None:
             if not fig_path.exists():
                 fig_path.mkdir()
