@@ -396,13 +396,21 @@ def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
     return v_data
 
 
-def get_features(data: np.ndarray, dt: float = 0.01) -> np.ndarray:
+def get_features(data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0,np.inf)) -> np.ndarray:
+    # Calculate the index range based on the time range (assumes time starts at 0)
+    i_range = np.array(
+        [
+            np.floor(t_range[0]/dt), 
+            np.min([np.floor(t_range[1]/dt)+1, data.shape[0]])
+        ]
+    )
+    i_range = i_range.astype(np.int64)
     v_data = calc_rate_of_change(data, dt)
     feature_list = (
-        np.nanmean(data, axis=0),
-        np.nanmax(data, axis=0),
-        np.nanmean(np.abs(v_data), axis=0),
-        np.nanmax(v_data, axis=0),
+        np.nanmean(data[i_range[0]:i_range[1], ...], axis=0),
+        np.nanmax(data[i_range[0]:i_range[1], ...], axis=0),
+        np.nanmean(np.abs(v_data[i_range[0]:i_range[1], ...]), axis=0),
+        np.nanmax(v_data[i_range[0]:i_range[1], ...], axis=0),
     )
     features = np.concat(feature_list, axis=1)
     return features

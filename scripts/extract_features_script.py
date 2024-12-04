@@ -35,7 +35,7 @@ def main(data_filepath: Path, export_path: Path):
             for i_task, task in enumerate(TASK_TYPES):
                 dataset: h5py.Dataset = f_root["/".join(["", participant_id, task])]
                 task_data = dataset.fields(variables)[:]
-                task_features = get_features(task_data["diameter_3d"])
+                task_features = get_features(task_data["diameter_3d"], t_range=(1.0, np.inf))
                 task_id_array = np.full(shape=(task_features.shape[0], 1), fill_value=i_task)
 
                 labelled_features = np.concat((task_features, task_id_array), axis=1)
@@ -47,7 +47,7 @@ def main(data_filepath: Path, export_path: Path):
             features.update({participant_id: feature_array})
     if not export_path.exists():
         export_path.mkdir()
-    export_filepath = export_path / "feature_data.npz"
+    export_filepath = export_path / f"{get_datetime()}_feature_data.npz"
     np.savez(file=export_filepath, **features)
                 
 
