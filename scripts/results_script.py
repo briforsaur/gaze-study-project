@@ -51,7 +51,9 @@ def main(data_filepath, results_path):
             
 
 def plot_hist(data: np.ndarray, xlabel: str, ylabel:str) -> Figure:
-    fig, ax = plt.subplots()
+    w = 6.7
+    fig = plt.figure(figsize=(w, w*9/16), dpi=300/(w/3.5))
+    ax = fig.subplots()
     ax.hist(data)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
