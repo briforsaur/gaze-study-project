@@ -202,7 +202,7 @@ def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str 
 
 def get_class_data(
     class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None
-) -> tuple[np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Extract labelled feature data from a .npz file
 
     Parameters
