@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 from pathlib import Path
-from numpy.lib.npyio import NpzFile
 import numpy as np
 import pickle
 import json
@@ -8,6 +7,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
 from pupiltools.utilities import make_digit_str, get_datetime
+from pupiltools.data_import import get_class_data
 
 
 def get_args():
@@ -67,50 +67,6 @@ def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int])
             }
         )
     save_as_json(classification_results, path=(results_path / "results.json"))
-
-
-def get_class_data(
-    class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None
-) -> tuple[np.ndarray]:
-    """Extract labelled feature data from a .npz file
-
-    Parameters
-    ----------
-    class_data_file: numpy.lib.npyio.NpzFile
-        An NpzFile object returned by numpy.load containing a set of arrays of labelled
-        feature data for each participant. Each array is expected to be of shape
-        (n_samples, n_features + 1), such that the last column contains the label data.
-        The label data is expected to be cast-able to the integer type.
-    ids: list[str]
-        A list of identifiers for the arrays to be extracted from the npz file.
-    rng: np.random.Generator, optional
-        A numpy random number generator used to shuffle all the rows of the extracted
-        data, ensuring a random sample order while keeping features grouped with the
-        corresponding labels. If this is not provided, the samples will be in order of
-        the identifiers provided and the order they were in the original arrays.
-
-    Returns
-    -------
-    feature_data: numpy.ndarray
-        An array of shape (N, n_features) containing the features for all samples in
-        the extracted arrays, where N is the sum of all n_samples from all arrays. The
-        samples may be randomized if an rng was provided.
-    label_data: numpy.ndarray
-        An array of shape (N,) containing the labels for all samples in the extracted
-        arrays. Each label element i corresponds to row i of the feature_data array.
-    """
-    labelled_feature_data = None
-    for id in ids:
-        participant_data = class_data_file[id]
-        if labelled_feature_data is None:
-            labelled_feature_data = participant_data
-        else:
-            labelled_feature_data = np.concat(
-                (labelled_feature_data, participant_data), axis=0
-            )
-    if rng is not None:
-        rng.shuffle(labelled_feature_data, axis=0)
-    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64)
 
 
 def save_model(model, path: Path):
