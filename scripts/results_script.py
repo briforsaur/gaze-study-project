@@ -44,9 +44,9 @@ def main(data_filepath, results_path):
     fig_f1 = plot_hist(f1["test"], xlabel="F1 Score", ylabel="Number of Model Instances")
     fig_f1.savefig(results_path / "f1_histogram.pdf")
     fig_conf_train = plot_confusion(np.mean(confusion_matrices["train"], axis=2), axlabels=("action", "observation"), clabel="Number of Samples")
-    fig_conf_train.savefig(results_path / "histogram_training.pdf")
+    fig_conf_train.savefig(results_path / "confusion_matrix_training.pdf")
     fig_conf_test = plot_confusion(np.mean(confusion_matrices["test"], axis=2), axlabels=("action", "observation"), clabel="Number of Samples")
-    fig_conf_test.savefig(results_path / "histogram_testing.pdf")
+    fig_conf_test.savefig(results_path / "confusion_matrix_testing.pdf")
     plt.show()
             
 
