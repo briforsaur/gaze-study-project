@@ -54,7 +54,7 @@ def main(data_filepath: Path, fig_path: Path):
         if fig_path is not None:
             if not fig_path.exists():
                 fig_path.mkdir()
-            fig.savefig(fig_path / f"feature_{i}.pdf")
+            fig.savefig(fig_path / f"feature_{i}.pdf", bbox_inches="tight")
     plt.show()
     
 

@@ -41,11 +41,11 @@ def main(data_filepath: Path, participant_id: str, show_fig: bool = False, fig_p
     fig = plt.figure(figsize=(w, w*9/16), dpi=300/(w/3.5))
     ax = fig.subplots()
     for task in tasks:
-        d_plt.plot_trendline_range(ax, t[task], trendlines[task], xlabel="Time [s]", ylabel="Proportional Change in Pupil Diameter [mm/mm]", label=task, xlim=(0., 4.0))
+        d_plt.plot_trendline_range(ax, t[task], trendlines[task], xlabel="Time [s]", ylabel="Proportional Diameter Change [mm/mm]", label=task, xlim=(0., 4.0))
     if fig_path is not None:
         if not fig_path.exists():
             fig_path.mkdir()
-        fig.savefig(fig_path / f"{participant_id}_trendline.pdf")
+        fig.savefig(fig_path / f"{participant_id}_trendline.pdf", bbox_inches="tight")
     if show_fig:
         plt.show()
 
