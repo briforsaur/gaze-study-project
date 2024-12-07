@@ -1,11 +1,15 @@
 from argparse import ArgumentParser
 import h5py
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
 import pupiltools.data_analysis as da
 import pupiltools.data_plotting as d_plt
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 def get_args():
     parser = ArgumentParser()

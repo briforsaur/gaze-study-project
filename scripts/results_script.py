@@ -2,9 +2,13 @@ from argparse import ArgumentParser
 from pathlib import Path
 import numpy as np
 import json
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 def get_args():
     parser = ArgumentParser()
@@ -32,7 +36,8 @@ def main(data_filepath, results_path):
             print(phase)
             acc[phase][p_id] = accuracy_score(labels, output)
             print(f"Accuracy:{acc[phase][p_id]:.3f}")
-            f1[phase][p_id] = f1_score(labels, output)
+            # Logical not is required to make Action the "positive" case
+            f1[phase][p_id] = f1_score(np.logical_not(labels), np.logical_not(output))
             print(f"F1      :{f1[phase][p_id]:.3f}")
             confusion_matrices[phase][:,:,p_id] = confusion_matrix(labels, output)
     print(f"Avg Accuracy   : {np.mean(acc['test']):.3f}")

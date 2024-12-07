@@ -1,10 +1,14 @@
 from argparse import ArgumentParser
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
 from pupiltools.constants import TASK_TYPES, PARTICIPANTS
 from pupiltools.data_import import get_class_data
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 
 def get_args():
@@ -20,7 +24,7 @@ def get_args():
 
 def main(data_filepath: Path, fig_path: Path):
     feature_labels = ("Mean Pupil Diameter", "Max Pupil Diameter", "Mean Absolute Pupil Rate", "Max Pupil Rate")
-    feature_units = ("mm", "mm", "mm/s", "mm/s")
+    feature_units = ("mm/mm", "mm/mm", "1/s", "1/s")
     class_data_file = np.load(data_filepath)
     features, labels = get_class_data(class_data_file, PARTICIPANTS)
     N_features = features.shape[1]
