@@ -416,6 +416,25 @@ def get_features(data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float
     return features
 
 
+def get_timeseries(data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0,np.inf)) -> np.ndarray:
+    # Calculate the index range based on the time range (assumes time starts at 0)
+    i_range = np.array(
+        [
+            np.floor(t_range[0]/dt), 
+            np.min([np.floor(t_range[1]/dt)+1, data.shape[0]])
+        ]
+    )
+    i_range = i_range.astype(np.int64)
+    timeseries = data[i_range[0]:i_range[1], ...]
+    timeseries = np.concat(timeseries, axis=1)
+    # Remove any rows with NaN
+    timeseries_pruned = timeseries[~np.isnan(timeseries).any(axis=1)]
+    if timeseries_pruned.shape[0] < timeseries.shape[0]:
+        N = timeseries.shape[0] - timeseries_pruned.shape[0]
+        logger.info(f"Removed {N} samples due to NaNs.")
+    return timeseries_pruned
+
+
 def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
     total_nan = np.sum(np.isnan(feature_array))
     logger.info(f"Imputing {total_nan} missing values.")
