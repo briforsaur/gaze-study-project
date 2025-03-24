@@ -41,7 +41,7 @@ def main(data_filepath: Path, results_path: Path):
             print(f"F1      :{f1[phase][p_id]:.3f}")
             confusion_matrices[phase][:,:,p_id] = confusion_matrix(labels, output)
     if not results_path.exists():
-        results_path.mkdir()
+        results_path.mkdir(parents=True)
     print(f"Avg Accuracy   : {np.mean(acc['test']):.3f}")
     print(f"Median Accuracy: {np.median(acc['test']):.3f}")
     fig_acc = plot_hist(acc["test"], xlabel="Accuracy", ylabel="Number of Model Instances")

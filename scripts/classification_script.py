@@ -27,7 +27,7 @@ def get_args():
 def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int]):
     results_path = results_path / get_datetime()
     if not results_path.exists():
-        results_path.mkdir()
+        results_path.mkdir(parents=True)
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
     # Load feature data file
     class_data_file = np.load(data_filepath)
