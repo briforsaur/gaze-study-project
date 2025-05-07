@@ -200,9 +200,8 @@ def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str 
     return data
 
 
-def get_class_data(
-    class_data_file: NpzFile, ids: list[str], rng: np.random.Generator = None
-) -> tuple[np.ndarray, np.ndarray]:
+def get_class_data(class_data_file: NpzFile, ids: list[str]
+    ) -> tuple[np.ndarray, np.ndarray]:
     """Extract labelled feature data from a .npz file
 
     Parameters
@@ -214,34 +213,34 @@ def get_class_data(
         The label data is expected to be cast-able to the integer type.
     ids: list[str]
         A list of identifiers for the arrays to be extracted from the npz file.
-    rng: np.random.Generator, optional
-        A numpy random number generator used to shuffle all the rows of the extracted
-        data, ensuring a random sample order while keeping features grouped with the
-        corresponding labels. If this is not provided, the samples will be in order of
-        the identifiers provided and the order they were in the original arrays.
 
     Returns
     -------
     feature_data: numpy.ndarray
         An array of shape (N, n_features) containing the features for all samples in
-        the extracted arrays, where N is the sum of all n_samples from all arrays. The
-        samples may be randomized if an rng was provided.
+        the extracted arrays, where N is the sum of all n_samples from all arrays.
     label_data: numpy.ndarray
-        An array of shape (N,) containing the labels for all samples in the extracted
-        arrays. Each label element i corresponds to row i of the feature_data array.
+        An array of shape (N,) containing the class labels for all samples in the 
+        extracted arrays. Each label element i corresponds to row i of the feature_data 
+        array.
+    group_labels: np.ndarray
+        An array of shape (N,) containing the group labels for all samples.
     """
     labelled_feature_data = None
+    splits = []
     for id in ids:
         participant_data = class_data_file[id]
+        n_id = int(id[1:])
+        group_label = np.full((participant_data.shape[0],), n_id)
         if labelled_feature_data is None:
             labelled_feature_data = participant_data
+            group_labels = group_label
         else:
             labelled_feature_data = np.concat(
                 (labelled_feature_data, participant_data), axis=0
             )
-    if rng is not None:
-        rng.shuffle(labelled_feature_data, axis=0)
-    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64)
+            group_labels = np.concat((group_labels, group_label))
+    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64), group_labels
 
 
 if __name__ == "__main__":

@@ -3,11 +3,13 @@ from pathlib import Path
 import numpy as np
 import pickle
 import json
+from datetime import datetime
 from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import cross_validate, LeaveOneGroupOut
 
-from pupiltools.utilities import make_digit_str, get_datetime
+from pupiltools.utilities import get_datetime
 from pupiltools.data_import import get_class_data
+from pupiltools.constants import PARTICIPANTS
 
 
 def get_args():
@@ -28,45 +30,34 @@ def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int])
     results_path = results_path / get_datetime()
     if not results_path.exists():
         results_path.mkdir(parents=True)
-    participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
     # Load feature data file
     class_data_file = np.load(data_filepath)
-    classification_results = {}
-    # For all participants
-    for p_id in participants:
-        # Split data into training and validation (leave one out)
-        training_ids = [p for p in participants if p is not p_id]
-        # Split data into testing and training features and class labels
-        rng = np.random.default_rng()
-        train_features, train_labels = get_class_data(
-            class_data_file, training_ids, rng
-        )
-        test_features, test_labels = get_class_data(class_data_file, (p_id,))
-        # Train model
-        clf = MLPClassifier(hidden_layer_sizes=hidden_layer_sizes, max_iter=1000, learning_rate="adaptive")
-        clf.fit(train_features, train_labels)
-        save_model(clf, path=(results_path / f"models/{p_id}_left_out.pickle"))
-        # Get final training metrics
-        train_output = clf.predict(train_features)
-        train_acc = accuracy_score(train_labels, train_output)
-        train_f1 = f1_score(train_labels, train_output)
-        print(f"\n{p_id} Results")
-        print(f"Training Accuracy: {train_acc:.3f}   Training F1: {train_f1:.3f}")
-        # Test model on left out data
-        test_output = clf.predict(test_features)
-        # Get final test metrics
-        test_acc = accuracy_score(test_labels, test_output)
-        test_f1 = f1_score(test_labels, test_output)
-        print(f"Testing Accuracy: {test_acc:.3f}   Testing F1: {test_f1:.3f}")
-        classification_results.update(
-            {
-                p_id: {
-                    "train": {"labels": train_labels.tolist(), "output": train_output.tolist()},
-                    "test": {"labels": test_labels.tolist(), "output": test_output.tolist()},
-                }
-            }
-        )
-    save_as_json(classification_results, path=(results_path / "results.json"))
+    features, class_labels, group_labels = get_class_data(
+        class_data_file, PARTICIPANTS
+    )
+    # Initialize model
+    clf = MLPClassifier(
+        hidden_layer_sizes=hidden_layer_sizes, max_iter=1000, learning_rate="adaptive"
+    )
+    # Define leave-one-out cross validation splits
+    cv_scheme = LeaveOneGroupOut().split(features, class_labels, group_labels)
+    # Perform cross validation
+    scores = cross_validate(
+        clf, features, class_labels, cv=cv_scheme,
+        scoring=('accuracy', 'f1'),
+        return_train_score=True)
+    print(f"Mean train accuracy: {scores['train_accuracy'].mean()}\nStd. Dev.: {scores['train_accuracy'].std()}")
+    print(f"Mean test accuracy: {scores['test_accuracy'].mean()}\nStd. Dev.: {scores['test_accuracy'].std()}")
+    print(f"Mean train f1: {scores['train_f1'].mean()}\nStd. Dev.: {scores['train_f1'].std()}")
+    print(f"Mean test f1: {scores['test_f1'].mean()}\nStd. Dev.: {scores['test_f1'].std()}")
+    # Get final training metrics
+    classification_results = {
+        "date_time": datetime.now().isoformat(),
+        "input_dimensions": features.shape[1:],
+        "classifier_parameters": clf.get_params(),
+        "cross_validation_scores": scores
+    }
+    save_as_json(classification_results, path=(results_path / "cv_results.json"))
 
 
 def save_model(model, path: Path):
@@ -87,7 +78,15 @@ def save_model(model, path: Path):
 
 def save_as_json(results, path: Path):
     with open(path, "w") as f:
-        json.dump(results, f, indent=4)
+        json.dump(results, f, indent=4, default=np_default)
+
+
+def np_default(o):
+    try:
+        o_list = o.tolist()
+    except:
+        raise(TypeError)
+    return o_list
 
 
 if __name__ == "__main__":
