@@ -189,7 +189,7 @@ def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str =
 
 def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str = "trials", trial: int = 0, topic: str = "pupil", method: str = "3d", eyes: tuple[int] = (0, 1)) -> np.ndarray | list[np.ndarray]:
     group_path = get_path(group=group, trial=trial)
-    group_obj: h5py.Group = datafile.hdf_root[group_path]
+    group_obj: h5py.Group = datafile.hdf_root[group_path] # type: ignore
     data = []
     for eye in eyes:
         if get_dataset_name(topic=topic, eye=eye, method=method) in group_obj:
@@ -201,7 +201,7 @@ def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str 
 
 
 def get_class_data(class_data_file: NpzFile, ids: list[str]
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extract labelled feature data from a .npz file
 
     Parameters
