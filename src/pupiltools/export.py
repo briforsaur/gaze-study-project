@@ -2,7 +2,7 @@
 
 import msgpack as mpk
 import numpy as np
-import pathlib
+from pathlib import Path
 from collections.abc import Iterator, Container, Iterable
 import csv
 import json
@@ -17,7 +17,7 @@ ts_file_suffix = "_timestamps.npy"
 data_file_suffix = ".pldata"
 
 
-def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experiment_log: pathlib.Path | None = None, filetype: str = "csv", demographics_log: pathlib.Path | None = None):
+def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | None = None, filetype: str = "csv", demographics_log: Path | None = None):
     assert folder_path.exists()
     if experiment_log is not None:
         sub_folders = get_subfolders_from_log(folder_path, experiment_log)
@@ -35,11 +35,11 @@ def export_folder(folder_path: pathlib.Path, output_path: pathlib.Path, experime
         export_hdf_from_raw(folder_path, output_path, sub_folders, metadata)
 
 
-def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.Path) -> Iterator[pathlib.Path]:
+def get_subfolders_from_log(folder_path: Path, experiment_log: Path) -> Iterator[Path]:
     with open(experiment_log) as f:
         log_data = json.load(f)
     for item in log_data["trial_record"]:
-        subfolder_path = folder_path / pathlib.Path(item["recording"])
+        subfolder_path = folder_path / Path(item["recording"])
         if subfolder_path.exists():
             yield subfolder_path
         else:
@@ -47,7 +47,7 @@ def get_subfolders_from_log(folder_path: pathlib.Path, experiment_log: pathlib.P
 
 
 def export_data_csv(
-    folder_path: pathlib.Path, output_path: pathlib.Path, data_topics: tuple[str]
+    folder_path: Path, output_path: Path, data_topics: tuple[str]
 ):
     """Export raw Pupil pldata and npy files to CSV"""
     world_ts_data = np.load(folder_path / "world_timestamps.npy")
@@ -64,7 +64,7 @@ def export_data_csv(
             writer.writerows(flattened_data)
 
 
-def export_hdf_from_raw(folder_path: pathlib.Path, output_path: pathlib.Path, sub_folders: Iterator[pathlib.Path], metadata: dict):
+def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Iterator[Path], metadata: dict):
     """Export raw Pupil pldata and npy files to HDF5 format"""
     topic = "pupil"
     export_file = output_path / f"{folder_path.name}.hdf5"
@@ -98,7 +98,7 @@ def export_hdf_from_raw(folder_path: pathlib.Path, output_path: pathlib.Path, su
 
 
 def extract_data(
-    data_file: pathlib.Path, t_start: float, method: str = "3d"
+    data_file: Path, t_start: float, method: str = "3d"
 ) -> Iterator[dict]:
     """Extract Pupil data from pldata (msgpack) format"""
     with open(data_file, "rb") as f:
@@ -299,13 +299,13 @@ def recurse_write_hdf(group: h5py.Group, data_structure):
 
 
 
-def load_json_log(log_file_path: pathlib.Path) -> dict:
+def load_json_log(log_file_path: Path) -> dict:
     with open(log_file_path, "r") as f:
         log_data = json.load(f)
     return log_data
 
 
-def save_processed_data(output_path: pathlib.Path, processed_data: dict[str, dict]):
+def save_processed_data(output_path: Path, processed_data: dict[str, dict]):
     with h5py.File(output_path, 'w') as f_root:
         for key, tasks in processed_data.items():
             p_group = f_root.create_group(key)
