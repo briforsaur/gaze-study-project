@@ -17,6 +17,10 @@ ts_file_suffix = "_timestamps.npy"
 data_file_suffix = ".pldata"
 
 
+class FolderNotFoundError(Exception):
+    pass
+
+
 def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | None = None, filetype: str = "csv", demographics_log: Path | None = None):
     assert folder_path.exists()
     if experiment_log is not None:
@@ -43,7 +47,7 @@ def get_subfolders_from_log(folder_path: Path, experiment_log: Path) -> Iterator
         if subfolder_path.exists():
             yield subfolder_path
         else:
-            print(f"Recording folder {subfolder_path} not found.")
+            raise FolderNotFoundError(f"Recording folder {subfolder_path} not found.")
 
 
 def export_data_csv(
