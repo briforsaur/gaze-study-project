@@ -1,42 +1,49 @@
-import argparse
-import pathlib
-import pupiltools.export as export
+from argparse import ArgumentParser
+from pathlib import Path
+from pupiltools.export import export_folder
 from dataclasses import dataclass, fields
 
 
 @dataclass
 class Args:
-    recording_path: pathlib.Path
-    output_path: pathlib.Path
-    log_file_path: pathlib.Path
+    recording_path: Path
+    output_path: Path
+    log_file_path: Path
     file_type: str
-    demographics_path: pathlib.Path
+    demographics_path: Path
     annotations: bool
 
 
 def get_args() -> Args:
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument(
         "recording_path",
-        type=pathlib.Path,
+        type=Path,
         help=(
             "Path to the the individual pupil recordings folders, i.e. "
             "<recording_path>/000, <recording_path>/001, etc."
         ),
     )
     parser.add_argument(
-        "output_path", type=pathlib.Path, help="Directory to save the exported data."
+        "output_path", type=Path, help="Directory to save the exported data."
     )
     parser.add_argument(
-        "--log_file_path", type=pathlib.Path, default=None,
-        help="Log file from experiment describing which recordings to export. If not supplied, the entire folder of recordings will be exported."
+        "--log_file_path",
+        type=Path,
+        default=None,
+        help="Log file from experiment describing which recordings to export. If not supplied, the entire folder of recordings will be exported.",
     )
     parser.add_argument(
-        "--file_type", default="csv", help="Export file type. Can be either 'csv' or 'hdf'"
+        "--file_type",
+        default="csv",
+        help="Export file type. Can be either 'csv' or 'hdf'",
     )
     parser.add_argument(
-        "--demographics_path", type=pathlib.Path, default=None, 
-        help="Log file from the experiment describing the participant demographics.")
+        "--demographics_path",
+        type=Path,
+        default=None,
+        help="Log file from the experiment describing the participant demographics.",
+    )
     parser.add_argument(
         "-a",
         "--annotations",
@@ -48,4 +55,10 @@ def get_args() -> Args:
 
 if __name__ == "__main__":
     args = get_args()
-    export.export_folder(args.recording_path, args.output_path, args.log_file_path, args.file_type, args.demographics_path)
+    export_folder(
+        args.recording_path,
+        args.output_path,
+        args.log_file_path,
+        args.file_type,
+        args.demographics_path,
+    )
