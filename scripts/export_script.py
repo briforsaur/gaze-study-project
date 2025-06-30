@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
 from pupiltools.export import export_folder
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 
 
 @dataclass
@@ -11,7 +11,6 @@ class Args:
     log_file_path: Path
     file_type: str
     demographics_path: Path
-    annotations: bool
 
 
 def get_args() -> Args:
@@ -43,12 +42,6 @@ def get_args() -> Args:
         type=Path,
         default=None,
         help="Log file from the experiment describing the participant demographics.",
-    )
-    parser.add_argument(
-        "-a",
-        "--annotations",
-        action="store_true",
-        help="export annotations (currently does nothing)",
     )
     return Args(**vars(parser.parse_args()))
 
