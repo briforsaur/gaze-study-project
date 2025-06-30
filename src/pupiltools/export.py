@@ -36,6 +36,8 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
             export_data_csv(sub_folder, output_path, topics)
     elif filetype == "hdf":
         metadata = get_metadata(experiment_log, demographics_log)
+        # Fix typo in the experiment log's datetime string
+        metadata["header"]["date"] = fix_datetime_string(metadata["header"]["date"])
         export_hdf_from_raw(folder_path, output_path, sub_folders, metadata)
 
 
@@ -229,9 +231,6 @@ def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
     demographic_metadata = load_json_log(demographics_log)
     demographic_metadata = demographic_metadata[participant_id]
     experiment_metadata["header"].update(demographic_metadata)
-    session_datetime = experiment_metadata["header"]["date"]
-    session_datetime = fix_datetime_string(session_datetime)
-    experiment_metadata["header"]["date"] = session_datetime
     return experiment_metadata
 
 
