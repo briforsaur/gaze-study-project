@@ -189,7 +189,37 @@ def pupildata_to_numpy(pupil_data: list) -> np.ndarray:
     return np.array(data, dtype=pupil_datatype)
 
 
-def get_metadata(experiment_log: pathlib.Path, demographics_log: pathlib.Path) -> dict:
+def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
+    """Get experiment and participant metadata from log files
+    
+    Parameters
+    ----------
+    experiment_log : pathlib.Path
+        Path to the experiment log file, a .json file with a header dictionary 
+        containing the participant ID and datetime of the experiment, then a list of 
+        trial record dictionaries giving the trial number, the task type, which die was
+        used, the associated recording number, the start time, the instruction time, and
+        the stop time of the experiment.
+            "header": {
+                "participant_id": "P01",
+                "date": "2024-08-15-T09:58:07"
+            },
+            "trial_record": [
+                {
+                "trial": 0,
+                "task": "observation",
+                "die": "4",
+                "recording": "010",
+                "t_start": 204.30433799998718,
+                "t_instruction": 207.1633179999917,
+                "t_stop": 208.1201849999925
+                }, ...
+            ]
+    demographics_log : pathlib.Path
+        Path to the demographics log for all experiments, a .json file with entries
+        corresponding to each participant ID. Each entry gives the age group, dominant
+        hand, and gender of the participant.
+    """
     experiment_metadata: dict[str, dict] = load_json_log(experiment_log)
     participant_id = experiment_metadata["header"]["participant_id"]
     demographic_metadata = load_json_log(demographics_log)
