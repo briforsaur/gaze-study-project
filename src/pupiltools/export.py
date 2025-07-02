@@ -11,10 +11,7 @@ from .aliases import pupil_datatype, ResampledParticipantDataType
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
 from os import PathLike
-
-
-ts_file_suffix = "_timestamps.npy"
-data_file_suffix = ".pldata"
+from .constants import DATA_FILE_SUFFIX, TS_FILE_SUFFIX
 
 
 class FolderNotFoundError(Exception):
@@ -56,9 +53,9 @@ def export_data_csv(
     folder_path: Path, output_path: Path, data_topics: tuple[str]
 ):
     """Export raw Pupil pldata and npy files to CSV"""
-    world_ts_data = np.load(folder_path / "world_timestamps.npy")
+    world_ts_data = np.load(folder_path / ("world" + TS_FILE_SUFFIX))
     for topic in data_topics:
-        data_file = folder_path / f"{topic}{data_file_suffix}"
+        data_file = folder_path / f"{topic}{DATA_FILE_SUFFIX}"
         export_file = output_path / f"{folder_path.name}_{topic}_positions.csv"
         with open(export_file, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=get_csv_fieldnames())
@@ -80,8 +77,8 @@ def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Itera
         for trial_num, sub_folder in enumerate(sub_folders):
             trial_group = trials_group.create_group(make_digit_str(trial_num))
             trial_group.attrs.update(metadata["trial_record"][trial_num])
-            world_ts_data = np.load(sub_folder / "world_timestamps.npy")
-            data_file = sub_folder / f"{topic}{data_file_suffix}"
+            world_ts_data = np.load(sub_folder / ("world" + TS_FILE_SUFFIX))
+            data_file = sub_folder / f"{topic}{DATA_FILE_SUFFIX}"
             data = extract_data(data_file, world_ts_data[0], method="3d")
             timestamped_data = match_timestamps(data, world_ts_data)
             grouped_data = {}
@@ -296,7 +293,7 @@ def recurse_write_hdf(group: h5py.Group, data_structure):
                 recurse_write_hdf(subgroup, item)
     elif isinstance(data_structure, Iterable):
         for i, item in enumerate(data_structure):
-            if isinstance(data_file_suffix, dict):
+            if isinstance(DATA_FILE_SUFFIX, dict):
                 group.create_dataset
 
 
