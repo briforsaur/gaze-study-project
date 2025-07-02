@@ -36,7 +36,8 @@ def main(data_filepath: Path, export_path: Path, t_max: float):
             feature_array = None
             for i_task, task in enumerate(TASK_TYPES):
                 logger.info(f"    {task}")
-                dataset: h5py.Dataset = f_root["/".join(["", participant_id, task])]
+                dataset = f_root["/".join(["", participant_id, task])]
+                assert isinstance(dataset, h5py.Dataset) # Assert to appease pylance
                 task_data = dataset.fields(variables)[:]
                 task_timeseries = get_timeseries(task_data["diameter_3d"], t_range=(1.0, t_max))
                 task_id_array = np.full(shape=(task_timeseries.shape[0], 1), fill_value=i_task)
