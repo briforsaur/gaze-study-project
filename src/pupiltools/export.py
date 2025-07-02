@@ -291,12 +291,6 @@ def recurse_write_hdf(group: h5py.Group, data_structure):
             elif isinstance(item, Iterator):
                 subgroup = group.create_group(key)
                 recurse_write_hdf(subgroup, item)
-    elif isinstance(data_structure, Iterable):
-        for i, item in enumerate(data_structure):
-            if isinstance(DATA_FILE_SUFFIX, dict):
-                group.create_dataset
-
-
 
 
 def load_json_log(log_file_path: Path) -> dict:
