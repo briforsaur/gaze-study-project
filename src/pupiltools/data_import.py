@@ -4,6 +4,7 @@ from numpy.lib.npyio import NpzFile
 import numpy as np
 import os
 from pathlib import Path
+from collections.abc import Iterable
 from typing import cast
 from .aliases import pupil_datatype, AttributesType, RawParticipantDataType, ResampledParticipantDataType
 from .utilities import make_digit_str
@@ -54,7 +55,7 @@ class GazeDataFile:
         topic: str = "pupil",
         eye: int = -1,
         method: str = "3d",
-        variables: str | list[str] = "all",
+        variables: str | Iterable[str] = "all",
     ) -> np.ndarray:
         """Get a numpy array from a gaze study dataset.
 
@@ -170,7 +171,7 @@ def get_dataset_name(topic: str = "", eye: int = -1, method: str = "") -> str:
     return "_".join(dataset_name_list)
 
 
-def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[RawParticipantDataType, dict]:
+def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | Iterable[str] = "all") -> tuple[RawParticipantDataType, dict]:
     """Get raw participant data from an HDF File"""
     participant_data = []
     with GazeDataFile(file, mode='r') as datafile:
@@ -182,7 +183,7 @@ def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "tria
     return participant_data, participant_metadata
 
 
-def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[ResampledParticipantDataType, dict]:
+def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | Iterable[str] = "all") -> tuple[ResampledParticipantDataType, dict]:
     """Get resampled participant data from an HDF File"""
     # Just a wrapper for get_raw_participant data with the correct return type hint
     hdf_path_info = {"group": group, "topic": topic, "method": method}
@@ -191,7 +192,7 @@ def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str =
     return participant_data, participant_metadata
 
 
-def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str = "trials", trial: int = 0, topic: str = "pupil", method: str = "3d", eyes: tuple[int,...] = (0, 1)) -> np.ndarray | list[np.ndarray]:
+def get_eye_data(datafile: GazeDataFile, variables: str | Iterable[str], group: str = "trials", trial: int = 0, topic: str = "pupil", method: str = "3d", eyes: tuple[int,...] = (0, 1)) -> np.ndarray | list[np.ndarray]:
     group_path = get_path(group=group, trial=trial)
     group_obj: h5py.Group = datafile.hdf_root[group_path] # type: ignore
     data = []
