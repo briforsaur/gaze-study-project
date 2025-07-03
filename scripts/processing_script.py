@@ -18,6 +18,7 @@ class Args:
     data_path: Path
     export_path: Path
     confidence_threshold: float
+    f_c: float
 
 
 def get_args() -> Args:
@@ -40,7 +41,7 @@ def get_args() -> Args:
         help="Low-pass filter cutoff frequency.",
         default=5,
     )
-    return parser.parse_args()
+    return Args(**vars(parser.parse_args()))
 
 
 def main(data_path: Path, export_path: Path, confidence_threshold: float, f_c: float = 5):
@@ -73,4 +74,4 @@ def main(data_path: Path, export_path: Path, confidence_threshold: float, f_c: f
 
 if __name__ == "__main__":
     args = get_args()
-    main(**vars(args))
+    main(data_path=args.data_path, export_path=args.export_path, confidence_threshold=args.confidence_threshold, f_c=args.f_c)
