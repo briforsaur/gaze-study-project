@@ -4,6 +4,7 @@ import numpy as np
 import scipy.signal as sig
 from sklearn.impute import SimpleImputer
 import logging
+from collections.abc import Iterable
 from .aliases import (
     RawParticipantDataType,
     TrialDataType,
@@ -44,7 +45,8 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
     trial: TrialDataType
     for trial in participant_data:
         for eye in (0, 1):
-            t = trial["data"][eye]["timestamp"]
+            t = trial["data"][eye]["timestamp"] # type: ignore
+            assert isinstance(t, np.ndarray)
             dt = calc_deltas(t)
             t_deltas.append(dt)
     return t_deltas
@@ -88,13 +90,13 @@ def resample_data(
     """Resample all datasets for a list of participant data"""
     resampled_data = []
     for trial_data in participant_data:
-        old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)]
+        old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)] # type: ignore
         t_start, t_stop, t_ins = get_key_times(
-            old_t_arrays, trial_data["attributes"]["t_instruction"], dt
+            old_t_arrays, trial_data["attributes"]["t_instruction"], dt # type: ignore
         )
         resampled_array = resample_trial(trial_data, t_start, t_stop, dt)
         keys = ("die", "recording", "task", "trial")
-        resampled_attributes = {k: trial_data["attributes"][k] for k in keys}
+        resampled_attributes = {k: trial_data["attributes"][k] for k in keys} # type: ignore
         resampled_attributes.update(
             {"t_offset": t_start, "t_instruction": t_ins, "sample_time_interval": dt}
         )
@@ -117,9 +119,10 @@ def resample_trial(
         the first data sample (point) for eye 1, and resampled_array[:,0] is all data
         for eye 0.
     """
-    t_array: npt.NDArray[np.float64] = np.arange(stop=t_stop, step=dt, dtype=np.float64)
-    resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype)
+    t_array: npt.NDArray[np.float64] = np.arange(start=0, stop=t_stop, step=dt, dtype=np.float64)
+    resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype) # type: ignore
     for n_eye, eye_data in enumerate(trial_data["data"]):
+        assert isinstance(eye_data, np.ndarray)
         t_old = eye_data["timestamp"] - t_start
         weight_matrix, conf_array = calc_weight_and_confidence(
             eye_data, t_array, t_old, dt
@@ -150,11 +153,12 @@ def calc_weight_and_confidence(
     # Computing weights for a weighted average based on confidence
     weight_matrix = np.zeros((t_array.size, t_old.size), dtype=np.float64)
     conf_array = np.zeros_like(t_array)
+    # Preallocate index array
+    index = np.full_like(t_old, False, dtype=np.bool)
     for i, t in enumerate(t_array):
         if t < dt:
             # The first time value does not have any data before it, so use
             # the initial condition
-            index = np.full_like(t_old, False, dtype=np.bool)
             index[0] = True
         else:
             elements_in_time_interval = np.logical_and(t_old >= t - dt, t_old < t)
@@ -206,13 +210,13 @@ def resample_dataset(
 def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
     max_length = 0
     for data_group in data_list:
-        data: np.ndarray = data_group["data"]
+        data: np.ndarray = data_group["data"] # type: ignore
         max_length = max(max_length, data.shape[0])
     return max_length
 
 
 def convert_to_array(
-    participant_data: list[dict[str, dict | np.ndarray]]
+    participant_data: ResampledParticipantDataType
 ) -> dict[str, np.ndarray]:
     """Converts a list of task metadata and data to a single numpy array
 
@@ -230,7 +234,7 @@ def convert_to_array(
     """
     N_max = get_max_data_length(participant_data)
     N_task = count_tasks(participant_data)
-    input_dtype = participant_data[0]["data"].dtype
+    input_dtype = participant_data[0]["data"].dtype #type: ignore
     array_dict = {
         "action": np.full(
             (N_max, N_task["action"], 2), fill_value=np.nan, dtype=input_dtype
@@ -242,10 +246,11 @@ def convert_to_array(
     i_tasks = {"action": 0, "observation": 0}
     for data_group in participant_data:
         task = data_group["attributes"]["task"]
-        trial_length = data_group["data"].shape[0]
+        assert isinstance(task, str)
+        trial_length = data_group["data"].shape[0] #type: ignore
         i = i_tasks[task]
         for n_eye in (0, 1):
-            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:, n_eye]
+            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:, n_eye] # type: ignore
         i_tasks[task] += 1
     return array_dict
 
@@ -332,10 +337,10 @@ def calc_split(
             split = b
         else:
             break
-    return split
+    return split #type: ignore
 
 
-def count_tasks(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[str, int]:
+def count_tasks(participant_data: ResampledParticipantDataType) -> dict[str, int]:
     """Count the number of times each task type appears in the dataset.
 
     Although the number of tasks is balanced at 60 each for most datasets, there are
@@ -344,6 +349,7 @@ def count_tasks(participant_data: list[dict[str, dict | np.ndarray]]) -> dict[st
     n = {"action": 0, "observation": 0}
     for trial_data in participant_data:
         task = trial_data["attributes"]["task"]
+        assert isinstance(task, str)
         n[task] += 1
     return n
 
@@ -375,9 +381,13 @@ def interpolate_nan(data_array: np.ndarray):
                 data[non_nan] = y
 
 
-def get_other_fields(fields: list, dtype: np.dtype) -> list:
+def get_other_fields(fields: Iterable[str], dtype: np.dtype) -> list:
     """Get all the fields in a numpy structured array other than the ones given"""
-    return [name for name in dtype.names if name not in fields]
+    if dtype.names is not None:
+        other_fields = [name for name in dtype.names if name not in fields]
+    else:
+        other_fields = []
+    return other_fields
 
 
 def filter_signal(x: np.ndarray, f_s: float, f_c: float) -> np.ndarray:
@@ -387,7 +397,7 @@ def filter_signal(x: np.ndarray, f_s: float, f_c: float) -> np.ndarray:
         order, Wn=f_c, fs=f_s, btype="lowpass", output="sos", ftype=ftype
     )
     x_filt = sig.sosfilt(sos, x, axis=0)
-    return x_filt
+    return x_filt #type: ignore
 
 
 def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
