@@ -244,8 +244,8 @@ def get_class_data(class_data_file: NpzFile, ids: list[str]
             labelled_feature_data = np.concat(
                 (labelled_feature_data, participant_data), axis=0
             )
-            group_labels = np.concat((group_labels, group_label))
-    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64), group_labels
+            group_labels = np.concat((group_labels, group_label)) # type: ignore
+    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64), group_labels # type: ignore
 
 
 if __name__ == "__main__":
