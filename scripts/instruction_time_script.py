@@ -19,7 +19,9 @@ def main(data_path: Path):
     #   Keep organized by task type
     instruction_times = get_instruction_times(file_paths)
     for task, t_list in instruction_times.items():
-        instruction_times[task] = np.array(t_list)
+        assert isinstance(task, str)
+        # Convert lists to ndarrays for use in numpy stats functions
+        instruction_times[task] = np.array(t_list) # type: ignore
     # Calculate mean and standard deviation
     mean = {key: np.mean(t_ins) for key, t_ins in instruction_times.items()}
     std_dev = {key: np.std(t_ins) for key, t_ins in instruction_times.items()}
@@ -36,9 +38,11 @@ def get_instruction_times(file_paths: list[Path]) -> dict[str, list[float]]:
         data, _ = di.get_resampled_participant_data(file=file_path, variables="timestamp")
         for trial_entry in data:
             t_ins = trial_entry["attributes"]["t_instruction"]
+            assert isinstance(t_ins, float)
             task = trial_entry["attributes"]["task"]
+            assert isinstance(task, str)
             # Some instruction times were not properly updated, 
-            if t_ins < 5:
+            if t_ins < 5.0:
                 instruction_times[task].append(t_ins)
     return instruction_times
 

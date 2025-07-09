@@ -33,7 +33,8 @@ def main(data_filepath: Path, export_path: Path):
         for participant_id in participants:
             feature_array = None
             for i_task, task in enumerate(TASK_TYPES):
-                dataset: h5py.Dataset = f_root["/".join(["", participant_id, task])]
+                dataset = f_root["/".join(["", participant_id, task])]
+                assert isinstance(dataset, h5py.Dataset)
                 task_data = dataset.fields(variables)[:]
                 task_features = get_features(task_data["diameter_3d"], t_range=(1.0, np.inf))
                 task_id_array = np.full(shape=(task_features.shape[0], 1), fill_value=i_task)
@@ -43,6 +44,7 @@ def main(data_filepath: Path, export_path: Path):
                     feature_array = labelled_features
                 else:
                     feature_array = np.concat((feature_array, labelled_features), axis=0)
+            assert isinstance(feature_array, np.ndarray)
             feature_array = impute_missing_values(feature_array)
             features.update({participant_id: feature_array})
     if not export_path.exists():
