@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from numpy import typing as npt
 from numpy.lib import recfunctions as rfn
 import numpy as np
@@ -14,6 +15,14 @@ from .aliases import (
 
 
 logger = logging.getLogger(__name__)
+
+@dataclass
+class FilterConfig:
+    ftype: str
+    btype: str
+    N: int
+    Wn: float
+    fs: float
 
 
 def calc_deltas(array: np.ndarray) -> np.ndarray:
@@ -394,11 +403,9 @@ def get_other_fields(fields: Iterable[str], dtype: np.dtype) -> list:
     return other_fields
 
 
-def filter_signal(x: np.ndarray, f_s: float, f_c: float) -> np.ndarray:
-    order = 3
-    ftype = "butter"
+def filter_signal(x: np.ndarray, filter_config: FilterConfig) -> np.ndarray:
     sos = sig.iirfilter(
-        order, Wn=f_c, fs=f_s, btype="lowpass", output="sos", ftype=ftype
+        N=filter_config.N, Wn=filter_config.Wn, btype=filter_config.btype, ftype=filter_config.ftype, output="sos", fs=filter_config.fs
     )
     x_filt = sig.sosfilt(sos, x, axis=0)
     return x_filt #type: ignore
