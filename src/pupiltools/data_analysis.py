@@ -298,6 +298,8 @@ def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
 def remove_low_confidence(data_array: np.ndarray, confidence_threshold: float = 0.6):
     """Replace low-confidence data in dataset with NaN
 
+    Modifies the input array in-place.
+
     Parameters
     ----------
     data_array: numpy.ndarray
@@ -356,6 +358,8 @@ def count_tasks(participant_data: ResampledParticipantDataType) -> dict[str, int
 
 def interpolate_nan(data_array: np.ndarray):
     """Linearly interpolate data where it is NaN
+
+    Modifies the input array in-place.
 
     All fields except for "timestamp" and "confidence" are checked for NaNs. NaNs
     surrounded by non-NaN data are filled in with linear interpolation. NaNs with no
