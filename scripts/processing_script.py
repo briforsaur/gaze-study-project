@@ -31,7 +31,9 @@ def get_args() -> Args:
         "export_path", type=Path, help="Path to directory to save the processed data."
     )
     parser.add_argument(
-        "filter_config_file", type=Path, help="Path to YAML file with filter configurations for each variable to be filtered."
+        "filter_config_file",
+        type=Path,
+        help="Path to YAML file with filter configurations for each variable to be filtered.",
     )
     parser.add_argument(
         "--confidence_threshold",
@@ -42,14 +44,19 @@ def get_args() -> Args:
     return Args(**vars(parser.parse_args()))
 
 
-def main(data_path: Path, export_path: Path, filter_config_file: Path, confidence_threshold: float):
+def main(
+    data_path: Path,
+    export_path: Path,
+    filter_config_file: Path,
+    confidence_threshold: float,
+):
     logging.basicConfig(level=logging.INFO)
     variables = ("timestamp", "confidence", "diameter_3d", "theta", "phi")
     hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
     participant_ids = ["P" + make_digit_str(i, 2) for i in range(1, 31)]
     processed_data = {}
     with open(filter_config_file, mode="r") as config_file:
-                filter_configs: dict = yaml.load(config_file, Loader=yaml.Loader)
+        filter_configs: dict = yaml.load(config_file, Loader=yaml.Loader)
     for participant_id in participant_ids:
         logger.info(f"Processing {participant_id}")
         file_path = data_path / f"{participant_id}.hdf5"
@@ -66,14 +73,21 @@ def main(data_path: Path, export_path: Path, filter_config_file: Path, confidenc
                 p_data_array[var_name] = da.filter_signal(
                     p_data_array[var_name], filter_config=filter_config
                 )
-        processed_data.update(
-            {participant_id: copy.deepcopy(p_data_arraydict)}
-        )
+        processed_data.update({participant_id: copy.deepcopy(p_data_arraydict)})
     if not export_path.exists():
         export_path.mkdir()
-    d_export.save_processed_data(export_path / f"processed_data_f{round(filter_configs['diameter_3d']['Wn']):.0f}.hdf5", processed_data)
+    d_export.save_processed_data(
+        export_path
+        / f"processed_data_f{round(filter_configs['diameter_3d']['Wn']):.0f}.hdf5",
+        processed_data,
+    )
 
 
 if __name__ == "__main__":
     args = get_args()
-    main(data_path=args.data_path, export_path=args.export_path, filter_config_file=args.filter_config_file, confidence_threshold=args.confidence_threshold)
+    main(
+        data_path=args.data_path,
+        export_path=args.export_path,
+        filter_config_file=args.filter_config_file,
+        confidence_threshold=args.confidence_threshold,
+    )

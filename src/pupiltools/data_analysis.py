@@ -16,6 +16,7 @@ from .aliases import (
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class FilterConfig:
     ftype: str
@@ -54,7 +55,7 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
     trial: TrialDataType
     for trial in participant_data:
         for eye in (0, 1):
-            t = trial["data"][eye]["timestamp"] # type: ignore
+            t = trial["data"][eye]["timestamp"]  # type: ignore
             assert isinstance(t, np.ndarray)
             dt = calc_deltas(t)
             t_deltas.append(dt)
@@ -99,13 +100,13 @@ def resample_data(
     """Resample all datasets for a list of participant data"""
     resampled_data = []
     for trial_data in participant_data:
-        old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)] # type: ignore
+        old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)]  # type: ignore
         t_start, t_stop, t_ins = get_key_times(
-            old_t_arrays, trial_data["attributes"]["t_instruction"], dt # type: ignore
+            old_t_arrays, trial_data["attributes"]["t_instruction"], dt  # type: ignore
         )
         resampled_array = resample_trial(trial_data, t_start, t_stop, dt)
         keys = ("die", "recording", "task", "trial")
-        resampled_attributes = {k: trial_data["attributes"][k] for k in keys} # type: ignore
+        resampled_attributes = {k: trial_data["attributes"][k] for k in keys}  # type: ignore
         resampled_attributes.update(
             {"t_offset": t_start, "t_instruction": t_ins, "sample_time_interval": dt}
         )
@@ -128,8 +129,10 @@ def resample_trial(
         the first data sample (point) for eye 1, and resampled_array[:,0] is all data
         for eye 0.
     """
-    t_array: npt.NDArray[np.float64] = np.arange(start=0, stop=t_stop, step=dt, dtype=np.float64)
-    resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype) # type: ignore
+    t_array: npt.NDArray[np.float64] = np.arange(
+        start=0, stop=t_stop, step=dt, dtype=np.float64
+    )
+    resampled_array = np.zeros((t_array.size, 2), dtype=trial_data["data"][0].dtype)  # type: ignore
     for n_eye, eye_data in enumerate(trial_data["data"]):
         assert isinstance(eye_data, np.ndarray)
         t_old = eye_data["timestamp"] - t_start
@@ -219,13 +222,13 @@ def resample_dataset(
 def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
     max_length = 0
     for data_group in data_list:
-        data: np.ndarray = data_group["data"] # type: ignore
+        data: np.ndarray = data_group["data"]  # type: ignore
         max_length = max(max_length, data.shape[0])
     return max_length
 
 
 def convert_to_array(
-    participant_data: ResampledParticipantDataType
+    participant_data: ResampledParticipantDataType,
 ) -> dict[str, np.ndarray]:
     """Converts a list of task metadata and data to a single numpy array
 
@@ -243,7 +246,7 @@ def convert_to_array(
     """
     N_max = get_max_data_length(participant_data)
     N_task = count_tasks(participant_data)
-    input_dtype = participant_data[0]["data"].dtype #type: ignore
+    input_dtype = participant_data[0]["data"].dtype  # type: ignore
     array_dict = {
         "action": np.full(
             (N_max, N_task["action"], 2), fill_value=np.nan, dtype=input_dtype
@@ -256,10 +259,10 @@ def convert_to_array(
     for data_group in participant_data:
         task = data_group["attributes"]["task"]
         assert isinstance(task, str)
-        trial_length = data_group["data"].shape[0] #type: ignore
+        trial_length = data_group["data"].shape[0]  # type: ignore
         i = i_tasks[task]
         for n_eye in (0, 1):
-            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:, n_eye] # type: ignore
+            array_dict[task][0:trial_length, i, n_eye] = data_group["data"][:, n_eye]  # type: ignore
         i_tasks[task] += 1
     return array_dict
 
@@ -348,7 +351,7 @@ def calc_split(
             split = b
         else:
             break
-    return split #type: ignore
+    return split  # type: ignore
 
 
 def count_tasks(participant_data: ResampledParticipantDataType) -> dict[str, int]:
@@ -405,10 +408,15 @@ def get_other_fields(fields: Iterable[str], dtype: np.dtype) -> list:
 
 def filter_signal(x: np.ndarray, filter_config: FilterConfig) -> np.ndarray:
     sos = sig.iirfilter(
-        N=filter_config.N, Wn=filter_config.Wn, btype=filter_config.btype, ftype=filter_config.ftype, output="sos", fs=filter_config.fs
+        N=filter_config.N,
+        Wn=filter_config.Wn,
+        btype=filter_config.btype,
+        ftype=filter_config.ftype,
+        output="sos",
+        fs=filter_config.fs,
     )
     x_filt = sig.sosfilt(sos, x, axis=0)
-    return x_filt #type: ignore
+    return x_filt  # type: ignore
 
 
 def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
@@ -417,36 +425,40 @@ def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
     return v_data
 
 
-def get_features(data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0,np.inf)) -> np.ndarray:
+def get_features(
+    data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0, np.inf)
+) -> np.ndarray:
     # Calculate the index range based on the time range (assumes time starts at 0)
     i_range = np.array(
         [
-            np.floor(t_range[0]/dt), 
-            np.min([np.floor(t_range[1]/dt)+1, data.shape[0]])
+            np.floor(t_range[0] / dt),
+            np.min([np.floor(t_range[1] / dt) + 1, data.shape[0]]),
         ]
     )
     i_range = i_range.astype(np.int64)
     v_data = calc_rate_of_change(data, dt)
     feature_list = (
-        np.nanmean(data[i_range[0]:i_range[1], ...], axis=0),
-        np.nanmax(data[i_range[0]:i_range[1], ...], axis=0),
-        np.nanmean(np.abs(v_data[i_range[0]:i_range[1], ...]), axis=0),
-        np.nanmax(v_data[i_range[0]:i_range[1], ...], axis=0),
+        np.nanmean(data[i_range[0] : i_range[1], ...], axis=0),
+        np.nanmax(data[i_range[0] : i_range[1], ...], axis=0),
+        np.nanmean(np.abs(v_data[i_range[0] : i_range[1], ...]), axis=0),
+        np.nanmax(v_data[i_range[0] : i_range[1], ...], axis=0),
     )
     features = np.concat(feature_list, axis=1)
     return features
 
 
-def get_timeseries(data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0,np.inf)) -> np.ndarray:
+def get_timeseries(
+    data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0, np.inf)
+) -> np.ndarray:
     # Calculate the index range based on the time range (assumes time starts at 0)
     i_range = np.array(
         [
-            np.floor(t_range[0]/dt), 
-            np.min([np.floor(t_range[1]/dt)+1, data.shape[0]])
+            np.floor(t_range[0] / dt),
+            np.min([np.floor(t_range[1] / dt) + 1, data.shape[0]]),
         ]
     )
     i_range = i_range.astype(np.int64)
-    timeseries = data[i_range[0]:i_range[1], ...]
+    timeseries = data[i_range[0] : i_range[1], ...]
     timeseries = np.concat(timeseries, axis=1)
     # Remove any rows with NaN
     timeseries_pruned = timeseries[~np.isnan(timeseries).any(axis=1)]
