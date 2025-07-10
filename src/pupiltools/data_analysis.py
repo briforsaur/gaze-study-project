@@ -407,6 +407,29 @@ def get_other_fields(fields: Iterable[str], dtype: np.dtype) -> list:
 
 
 def filter_signal(x: np.ndarray, filter_config: FilterConfig) -> np.ndarray:
+    """Filter an array of timeseries signals.
+    
+    Filter an array of timeseries signals over the time dimension. The time
+    dimension is assumed to be the first dimension in the array. For example,
+    an array with 1000 samples in time, over sixty trials, for each eye, would
+    have the shape (1000, 60, 2).
+
+    Parameters
+    ----------
+    x: numpy.ndarray
+        The array of signals to be filtered, of shape (n, ...) where n
+        is the number of samples in time.
+    filter_config: FilterConfig
+        An object with properties corresponding to the order (N), cutoff 
+        frequency (Wn), band type (btype), filter type (ftype), and
+        sample rate (fs) of a scipy.signal.iirfilter second-order-sections
+        filter.
+    
+    Returns
+    -------
+    x_filt: np.ndarray
+        The array of filtered signals, of shape (n, ...).
+    """
     sos = sig.iirfilter(
         N=filter_config.N,
         Wn=filter_config.Wn,
@@ -415,8 +438,17 @@ def filter_signal(x: np.ndarray, filter_config: FilterConfig) -> np.ndarray:
         output="sos",
         fs=filter_config.fs,
     )
-    x_filt = sig.sosfilt(sos, x, axis=0)
-    return x_filt  # type: ignore
+    # zi required to match initial conditions
+    zi = sig.sosfilt_zi(sos)
+    # Reshaping zi, ex. if x has shape (N, 60, 2), then zi must be (n_sections, 2, 1, 1)
+    extra_dims = [1]*(np.ndim(x) - 1)
+    zi = np.reshape(zi, (2, 2, *extra_dims))
+    # Getting the initial condition of x and reshaping, for example if x has shape
+    # (N, 60, 2), the final shape must be (1, 1, 60, 2) to broadcast with zi
+    x0 = np.reshape(x[0,:,:], (1, 1, *x.shape[1:]))
+    x_filt = sig.sosfilt(sos, x, axis=0, zi=zi*x0)
+    # Only return the first element of x_filt, the second gives delay from zi
+    return x_filt[0]  # type: ignore
 
 
 def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
