@@ -9,3 +9,16 @@ diameter_3d:
   N: 3 # Filter order
   Wn: 18.0 # Cutoff frequency, Hz
   fs: 100.0 # Signal sample rate, Hz
+# Pupil spherical orientation filter parameters
+theta:
+  ftype: butter
+  btype: lowpass
+  N: 3 # Filter order
+  Wn: 25.0 # Cutoff frequency, Hz
+  fs: 100.0 # Signal sample rate, Hz
+phi:
+  ftype: butter
+  btype: lowpass
+  N: 3 # Filter order
+  Wn: 25.0 # Cutoff frequency, Hz
+  fs: 100.0 # Signal sample rate, Hz
