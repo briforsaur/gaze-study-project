@@ -1,7 +1,7 @@
 import pupiltools.data_import as d_import
 import pupiltools.data_analysis as da
 import pupiltools.export as d_export
-from pupiltools.utilities import make_digit_str
+from pupiltools.utilities import make_digit_str, get_datetime
 
 from argparse import ArgumentParser
 import copy
@@ -78,7 +78,7 @@ def main(
         export_path.mkdir()
     d_export.save_processed_data(
         export_path
-        / f"processed_data_f{round(filter_configs['diameter_3d']['Wn']):.0f}.hdf5",
+        / f"{get_datetime()}_processed_data_f{round(filter_configs['diameter_3d']['Wn']):.0f}.hdf5",
         processed_data,
     )
 
