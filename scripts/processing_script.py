@@ -74,12 +74,18 @@ def main(
                     p_data_array[var_name], filter_config=filter_config
                 )
         processed_data.update({participant_id: copy.deepcopy(p_data_arraydict)})
+    # Flatten the filter configs dict to be used as HDF file attributes
+    flat_configs = {}
+    for key, value in filter_configs.items():
+        for subkey, subvalue in value.items():
+            flat_configs.update({"_".join((key, subkey)): subvalue})
     if not export_path.exists():
         export_path.mkdir()
     d_export.save_processed_data(
         export_path
         / f"{get_datetime()}_processed_data_f{round(filter_configs['diameter_3d']['Wn']):.0f}.hdf5",
         processed_data,
+        flat_configs,
     )
 
 
