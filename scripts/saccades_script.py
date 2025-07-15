@@ -36,8 +36,9 @@ def get_args() -> Args:
 
 
 def main(data_path: Path, export_path: Path, comparison_file: Path = None): #type: ignore
-    participant = "P05"
+    participant = "P23"
     variables = ("timestamp", "theta", "phi")
+    angles = variables[1:]
     task_number = 35
     if comparison_file is not None:
         files = (data_path, comparison_file)
@@ -47,22 +48,27 @@ def main(data_path: Path, export_path: Path, comparison_file: Path = None): #typ
         legend = ()
     w = 12
     fig = plt.figure(figsize=(w, w), dpi=300)
-    axs = fig.subplots(2, 1)
+    axs = fig.subplots(2, 2)
     for file in files:
-        task_data = {}
         with h5py.File(file, mode='r') as f_root:
-            for task, ax in zip(TASK_TYPES, axs):
-                assert isinstance(ax, matplotlib.axes.Axes)
+            for j, task in enumerate(TASK_TYPES):
                 dataset = f_root[f"/{participant}/{task}"]
                 assert isinstance(dataset, h5py.Dataset)
                 track_data = dataset.fields(variables)[:]
                 assert isinstance(track_data, np.ndarray)
                 plot_data = track_data[:, task_number, :]
-                ax.plot(plot_data['timestamp'][:,0], plot_data['theta'][:,0])
-                ax.set_title(task)
-                ax.set_xlabel("Time [s]")
-                ax.set_ylabel("Polar Angle, $\\theta$ [rad]")
-                ax.legend(legend)
+                for i in range(2):
+                    ax = axs[i,j]
+                    assert isinstance(ax, matplotlib.axes.Axes)
+                    ax.plot(plot_data['timestamp'][:,0], plot_data[angles[i]][:,0])
+                    ax.set_xlabel("Time [s]")
+                    if i == 0:
+                        ylabel = "Polar Angle, $\\theta$ [rad]"
+                        ax.set_title(task)
+                    else:
+                        ylabel = "Azimuth angle, $\\phi$ [rad]"
+                    ax.set_ylabel(ylabel)
+                    ax.legend(legend)
     if not export_path.exists():
         export_path.mkdir(parents=True)
     fig.savefig(export_path / f"{participant}_saccade.pdf", bbox_inches="tight")
