@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import numpy as np
+import matplotlib.pyplot as plt
 from pathlib import Path
 
 import pupiltools.data_import as di
@@ -10,10 +11,11 @@ from pupiltools.constants import PARTICIPANTS, TASK_TYPES
 def get_args():
     parser = ArgumentParser()
     parser.add_argument("data_path", type=Path, help="Path to the folder containing HDF Files.")
+    parser.add_argument("--fig_path", type=Path, default=None, help="Path to the folder to save figures.")
     return parser.parse_args()
 
 
-def main(data_path: Path):
+def main(data_path: Path, fig_path: Path = None): #type: ignore
     file_paths = [data_path / f"{p}.hdf5" for p in PARTICIPANTS]
     # Load all instruction times from HDF files
     #   Keep organized by task type
@@ -30,6 +32,17 @@ def main(data_path: Path):
         print(f"Mean   : {mean[key]} s")
         print(f"Std Dev: {std_dev[key]} s")
     # Plot histogram
+    ax = plt.subplot()
+    ax.hist(instruction_times["action"])
+    ax.hist(instruction_times["observation"])
+    ax.legend(TASK_TYPES)
+    ax.set_xlabel("Time of Instruction End [s]")
+    ax.set_ylabel("Number of Trials")
+    if fig_path is not None:
+        if not fig_path.exists(): fig_path.mkdir(parents=True)
+        plt.gcf().savefig(fig_path / "instruction-times-histogram.pdf", bbox_inches="tight")
+    plt.show()
+    
 
 
 def get_instruction_times(file_paths: list[Path]) -> dict[str, list[float]]:
