@@ -6,7 +6,7 @@ import numpy as np
 import logging
 
 from pupiltools.utilities import make_digit_str, get_datetime
-from pupiltools.data_analysis import get_timeseries, impute_missing_values
+from pupiltools.data_analysis import get_timeseries, calc_index_from_time, impute_missing_values
 from pupiltools.constants import TASK_TYPES
 
 
@@ -42,7 +42,8 @@ def main(data_filepath: Path, export_path: Path, t_max: float, variables: Iterab
                 dataset = f_root["/".join(["", participant_id, task])]
                 assert isinstance(dataset, h5py.Dataset) # Assert to appease pylance
                 task_data = dataset.fields(variables)[:]
-                task_timeseries = get_timeseries(task_data["diameter_3d"], t_range=(1.0, t_max))
+                i_range = calc_index_from_time(task_data.shape[0], t_range=(1.0, t_max))
+                task_timeseries = get_timeseries(task_data["diameter_3d"], i_range)
                 task_id_array = np.full(shape=(task_timeseries.shape[0], 1), fill_value=i_task)
                 labelled_features = np.concat((task_timeseries, task_id_array), axis=1)
                 if feature_array is None:

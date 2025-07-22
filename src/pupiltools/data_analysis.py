@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from numpy import typing as npt
 from numpy.lib import recfunctions as rfn
 import numpy as np
+import numpy.typing as npt
 import scipy.signal as sig
 from sklearn.impute import SimpleImputer
 import logging
@@ -479,17 +480,30 @@ def get_features(
     return features
 
 
-def get_timeseries(
-    data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0, np.inf)
-) -> np.ndarray:
-    # Calculate the index range based on the time range (assumes time starts at 0)
-    i_range = np.array(
-        [
-            np.floor(t_range[0] / dt),
-            np.min([np.floor(t_range[1] / dt) + 1, data.shape[0]]),
-        ]
-    )
-    i_range = i_range.astype(np.int64)
+def get_timeseries(data: np.ndarray, i_range: tuple[int, int]) -> np.ndarray:
+    """Reshape timeseries data in a form amenable to neural net input
+    
+    Parameters
+    ----------
+    data: np.ndarray
+        The data to be reshaped, assumed to be in shape N x n x 2, where N is the length
+        in time, n is the number of tasks, and 2 corresponds to the number of eyes.
+    i_range: tuple[int, int]
+        The range of indices in time to return in the output vector. For example, for
+        a timeseries with a sample rate of 0.01 seconds and starting time of 0, 
+        i_range = [100, 201] would correspond to the all data points from 1.00 second to 
+        2.00 seconds, inclusive.
+    Returns
+    -------
+    reshaped_timeseries: np.ndarray
+        The reshaped and pruned data in shape (n - p) x 2N. The data from each eye are
+        concatenated along the columns. p is the number of tasks that were pruned from
+        the final vector for having any NaNs in them. NaNs would be the result of 
+        insufficiently long timeseries given the i_range, or extremely poor quality
+        data that could not be interpolated.
+
+    The number of pruned tasks, p, is printed to the logger.info stream.
+    """
     timeseries = data[i_range[0] : i_range[1], ...]
     timeseries = np.concat(timeseries, axis=1)
     # Remove any rows with NaN
@@ -498,6 +512,42 @@ def get_timeseries(
         N = timeseries.shape[0] - timeseries_pruned.shape[0]
         logger.info(f"Removed {N} samples due to NaNs.")
     return timeseries_pruned
+
+
+def calc_index_from_time(N: int, t_range: tuple[float, float], dt: float = 0.01) -> tuple[int, int]:
+    """Calculate an index range based on a time range and sample rate
+
+    Parameters
+    ----------
+    N: int
+        The number of samples in time in the array.
+    t_range: tuple[float, float]
+        The time range to be converted into an index range. Assumes t = 0 at index 0.
+    dt: float = 0.01
+        The sample rate of the data in the array. Must be in the same unit as t_range.
+    Returns
+    -------
+    i_range: ndarray[int]
+        The pair of indices closest to the given time range values, rounded down. Will
+        not exceed N.
+    Example
+    -------
+    >>> calc_index_from_time(51, (0.1, 0.4))
+    (10, 41)
+    >>> calc_index_from_time(51, (0.1, 0.6))
+    (10, 51)
+    >>> calc_index_from_time(101, (1.0, 3.0), dt=0.1)
+    (10, 31)
+    """
+    # Calculate the index range based on the time range (assumes time starts at 0)
+    i_range = np.array(
+        [
+            np.floor(t_range[0] / dt),
+            np.min([np.floor(t_range[1] / dt) + 1, N]),
+        ]
+    )
+    i_range = i_range.astype(int)
+    return tuple(i_range)
 
 
 def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
