@@ -1,15 +1,17 @@
 from argparse import ArgumentParser
+from collections.abc import Iterable
 from pathlib import Path
 import h5py
 import numpy as np
 import logging
 
 from pupiltools.utilities import make_digit_str, get_datetime
-from pupiltools.data_analysis import get_timeseries, impute_missing_values
+from pupiltools.data_analysis import get_timeseries, calc_index_from_time, impute_missing_values
 from pupiltools.constants import TASK_TYPES
 
 
 logger = logging.getLogger(__name__)
+DEFAULT_VARS = ("diameter_3d",)
 
 
 def get_args():
@@ -23,12 +25,13 @@ def get_args():
     parser.add_argument(
         "t_max", type=float, help="Maximum time value for extracted timeseries"
     )
+    parser.add_argument("--variables", type=str, nargs='*', help="Variables other than timestamp and confidence to include in the exported timeseries.", default=DEFAULT_VARS)
     return parser.parse_args()
 
 
-def main(data_filepath: Path, export_path: Path, t_max: float):
+def main(data_filepath: Path, export_path: Path, t_max: float, variables: Iterable[str] = DEFAULT_VARS):
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
-    variables = ("timestamp", "confidence", "diameter_3d")
+    variables = ("timestamp", "confidence", *variables)
     features = {}
     with h5py.File(data_filepath, mode='r') as f_root:
         for participant_id in participants:
@@ -36,9 +39,11 @@ def main(data_filepath: Path, export_path: Path, t_max: float):
             feature_array = None
             for i_task, task in enumerate(TASK_TYPES):
                 logger.info(f"    {task}")
-                dataset: h5py.Dataset = f_root["/".join(["", participant_id, task])]
+                dataset = f_root["/".join(["", participant_id, task])]
+                assert isinstance(dataset, h5py.Dataset) # Assert to appease pylance
                 task_data = dataset.fields(variables)[:]
-                task_timeseries = get_timeseries(task_data["diameter_3d"], t_range=(1.0, t_max))
+                i_range = calc_index_from_time(task_data.shape[0], t_range=(1.0, t_max))
+                task_timeseries = get_timeseries(task_data["diameter_3d"], i_range)
                 task_id_array = np.full(shape=(task_timeseries.shape[0], 1), fill_value=i_task)
                 labelled_features = np.concat((task_timeseries, task_id_array), axis=1)
                 if feature_array is None:

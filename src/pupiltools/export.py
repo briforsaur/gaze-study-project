@@ -6,6 +6,7 @@ from pathlib import Path
 from collections.abc import Iterator, Container, Iterable
 import csv
 import json
+from typing import Any
 from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError
 from .aliases import pupil_datatype, ResampledParticipantDataType
 from .utilities import fix_datetime_string, make_digit_str
@@ -299,8 +300,9 @@ def load_json_log(log_file_path: Path) -> dict:
     return log_data
 
 
-def save_processed_data(output_path: Path, processed_data: dict[str, dict]):
+def save_processed_data(output_path: Path, processed_data: dict[str, dict], attributes: dict[str, Any]):
     with h5py.File(output_path, 'w') as f_root:
+        f_root.attrs.update(attributes)
         for key, tasks in processed_data.items():
             p_group = f_root.create_group(key)
             for task, task_data in tasks.items():

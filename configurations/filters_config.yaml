@@ -1,0 +1,24 @@
+# Filter parameters matching the scipy.signal.iirfilter function parameters
+# Each entry is for one variable in the pupil data to be filtered, and
+# must match that variable's name.
+
+# Pupil diameter filter parameters
+diameter_3d:
+  ftype: butter
+  btype: lowpass
+  N: 3 # Filter order
+  Wn: 18.0 # Cutoff frequency, Hz
+  fs: 100.0 # Signal sample rate, Hz
+# Pupil spherical orientation filter parameters
+theta:
+  ftype: butter
+  btype: lowpass
+  N: 3 # Filter order
+  Wn: 25.0 # Cutoff frequency, Hz
+  fs: 100.0 # Signal sample rate, Hz
+phi:
+  ftype: butter
+  btype: lowpass
+  N: 3 # Filter order
+  Wn: 25.0 # Cutoff frequency, Hz
+  fs: 100.0 # Signal sample rate, Hz

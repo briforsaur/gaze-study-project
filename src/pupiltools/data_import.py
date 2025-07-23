@@ -4,7 +4,8 @@ from numpy.lib.npyio import NpzFile
 import numpy as np
 import os
 from pathlib import Path
-from typing import TypeAlias
+from collections.abc import Iterable
+from typing import cast
 from .aliases import pupil_datatype, AttributesType, RawParticipantDataType, ResampledParticipantDataType
 from .utilities import make_digit_str
 
@@ -45,7 +46,7 @@ class GazeDataFile:
         """
         self.file = file
         self.hdf_root = h5py.File(file, mode=mode)
-        self.n_trials = len(self.hdf_root["trials"].keys())
+        self.n_trials = len(self.hdf_root["trials"].keys()) # type: ignore
 
     def get_data(
         self,
@@ -54,7 +55,7 @@ class GazeDataFile:
         topic: str = "pupil",
         eye: int = -1,
         method: str = "3d",
-        variables: str | list[str] = "all",
+        variables: str | Iterable[str] = "all",
     ) -> np.ndarray:
         """Get a numpy array from a gaze study dataset.
 
@@ -85,7 +86,8 @@ class GazeDataFile:
             A structured array containing the requested variables within the dataset. 
         """
         datapath = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
-        dataset: h5py.Dataset = self.hdf_root[datapath]
+        dataset = self.hdf_root[datapath]
+        assert isinstance(dataset, h5py.Dataset) # Assert appeases pylance
         if isinstance(variables, str) and variables == "all":
             # Preallocate an array and read the dataset in directly to avoid an
             # intermediate copy of the entire dataset
@@ -105,8 +107,10 @@ class GazeDataFile:
     ) -> AttributesType:
         """Get the attributes of a member of the HDF File"""
         path = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
+        hdf_member = self.hdf_root[path]
+        assert isinstance(hdf_member, h5py.Group | h5py.Dataset) # Assert appeases pylance
         # Need to use dict() to avoid shallow copy that is left dangling on file close
-        return dict(self.hdf_root[path].attrs)
+        return dict(hdf_member.attrs.items())
     
     def close(self):
         self.hdf_root.close()
@@ -167,27 +171,28 @@ def get_dataset_name(topic: str = "", eye: int = -1, method: str = "") -> str:
     return "_".join(dataset_name_list)
 
 
-def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[RawParticipantDataType, dict]:
+def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | Iterable[str] = "all") -> tuple[RawParticipantDataType, dict]:
     """Get raw participant data from an HDF File"""
-    hdf_path_info = {"group": group, "topic": topic, "method": method}
     participant_data = []
     with GazeDataFile(file, mode='r') as datafile:
         participant_metadata = datafile.get_attributes()
         for i_trial in range(datafile.n_trials):
             attr = datafile.get_attributes(group=group, trial=i_trial)
-            data = get_eye_data(datafile, variables=variables, trial=i_trial, **hdf_path_info)
+            data = get_eye_data(datafile, variables=variables, trial=i_trial, group=group, topic=topic, method=method)
             participant_data.append({"attributes": attr, "data": data})
     return participant_data, participant_metadata
 
 
-def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | list[str] = "all") -> tuple[ResampledParticipantDataType, dict]:
+def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", method: str = "3d", variables: str | Iterable[str] = "all") -> tuple[ResampledParticipantDataType, dict]:
     """Get resampled participant data from an HDF File"""
     # Just a wrapper for get_raw_participant data with the correct return type hint
     hdf_path_info = {"group": group, "topic": topic, "method": method}
-    return get_raw_participant_data(file=file, variables=variables, **hdf_path_info)
+    participant_data, participant_metadata = get_raw_participant_data(file=file, variables=variables, **hdf_path_info)
+    participant_data = cast(ResampledParticipantDataType, participant_data)
+    return participant_data, participant_metadata
 
 
-def get_eye_data(datafile: GazeDataFile, variables: str | list[str], group: str = "trials", trial: int = 0, topic: str = "pupil", method: str = "3d", eyes: tuple[int] = (0, 1)) -> np.ndarray | list[np.ndarray]:
+def get_eye_data(datafile: GazeDataFile, variables: str | Iterable[str], group: str = "trials", trial: int = 0, topic: str = "pupil", method: str = "3d", eyes: tuple[int,...] = (0, 1)) -> np.ndarray | list[np.ndarray]:
     group_path = get_path(group=group, trial=trial)
     group_obj: h5py.Group = datafile.hdf_root[group_path] # type: ignore
     data = []
@@ -239,8 +244,8 @@ def get_class_data(class_data_file: NpzFile, ids: list[str]
             labelled_feature_data = np.concat(
                 (labelled_feature_data, participant_data), axis=0
             )
-            group_labels = np.concat((group_labels, group_label))
-    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64), group_labels
+            group_labels = np.concat((group_labels, group_label)) # type: ignore
+    return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64), group_labels # type: ignore
 
 
 if __name__ == "__main__":
