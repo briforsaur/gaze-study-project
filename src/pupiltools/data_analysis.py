@@ -550,6 +550,17 @@ def calc_index_from_time(N: int, t_range: tuple[float, float], dt: float = 0.01)
     return tuple(i_range)
 
 
+def get_all_timeseries(data: np.recarray, i_range: tuple[int, int], variables: tuple[str,...]) -> np.ndarray:
+    all_timeseries = np.zeros((0,0), dtype=np.float64)
+    for i, variable in enumerate(variables):
+        variable_data = get_timeseries(data[variable], i_range)
+        if all_timeseries.shape == (0,0):
+            n, N = variable_data.shape
+            all_timeseries = np.zeros((n, N*len(variables)))
+        all_timeseries[:, i*N:(i+1)*N] = variable_data
+    return all_timeseries
+
+
 def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
     total_nan = np.sum(np.isnan(feature_array))
     logger.info(f"Imputing {total_nan} missing values.")
