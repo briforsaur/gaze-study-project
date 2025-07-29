@@ -7,59 +7,81 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
-matplotlib.rcParams['pdf.fonttype'] = 42
-matplotlib.rcParams['ps.fonttype'] = 42
+from pupiltools.utilities import make_digit_str
+
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
+
+W = 6.7
+
 
 def get_args():
     parser = ArgumentParser()
     parser.add_argument(
-        "data_filepath", type=Path, help="Path to the json file containing the results data."
+        "data_filepath",
+        type=Path,
+        help="Path to the json file containing the results data.",
     )
     parser.add_argument(
-        "results_path", type=Path, help="Path to directory to save the figures and other outputs."
+        "results_path",
+        type=Path,
+        help="Path to directory to save the figures and other outputs.",
+    )
+    parser.add_argument(
+        "--show_plots", action="store_true", help="Flag to show plots at end of script."
     )
     return parser.parse_args()
 
 
-def main(data_filepath: Path, results_path: Path):
+def main(data_filepath: Path, results_path: Path, show_plots: bool):
     with open(data_filepath, "r") as f:
         classification_results: dict[str, dict] = json.load(f)
-    N_c = len(classification_results)
-    acc = {"train": np.zeros((N_c,)), "test": np.zeros((N_c,))}
-    f1 = {"train": np.zeros((N_c,)), "test": np.zeros((N_c,))}
-    confusion_matrices = {"train": np.zeros((2, 2, N_c)), "test": np.zeros((2, 2, N_c))}
-    for p_id, p_results in enumerate(classification_results.values()):
-        print(p_id)
-        for phase, results in p_results.items():
-            labels = np.array(results["labels"])
-            output = np.array(results["output"])
-            print(phase)
-            acc[phase][p_id] = accuracy_score(labels, output)
-            print(f"Accuracy:{acc[phase][p_id]:.3f}")
-            # Logical not is required to make Action the "positive" case
-            f1[phase][p_id] = f1_score(np.logical_not(labels), np.logical_not(output))
-            print(f"F1      :{f1[phase][p_id]:.3f}")
-            confusion_matrices[phase][:,:,p_id] = confusion_matrix(labels, output)
+    cv_scores = classification_results["cross_validation_scores"]
+    loss_curves = classification_results["training_loss"]
+    N_c = len(cv_scores["test_accuracy"])
+    acc = {
+        "train": np.array(cv_scores["train_accuracy"]),
+        "test": cv_scores["test_accuracy"],
+    }
+    f1 = {"train": np.array(cv_scores["train_f1"]), "test": cv_scores["test_f1"]}
     if not results_path.exists():
         results_path.mkdir(parents=True)
     print(f"Avg Accuracy   : {np.mean(acc['test']):.3f}")
     print(f"Median Accuracy: {np.median(acc['test']):.3f}")
-    fig_acc = plot_hist(acc["test"], xlabel="Accuracy", ylabel="Number of Model Instances")
+    fig_acc = plot_hist(
+        acc["test"], xlabel="Accuracy", ylabel="Number of Model Instances"
+    )
     fig_acc.savefig(results_path / "accuracy_histogram.pdf", bbox_inches="tight")
     print(f"Avg F1         : {np.mean(f1['test']):.3f}")
     print(f"Median F1      : {np.median(f1['test']):.3f}")
-    fig_f1 = plot_hist(f1["test"], xlabel="F1 Score", ylabel="Number of Model Instances")
+    fig_f1 = plot_hist(
+        f1["test"], xlabel="F1 Score", ylabel="Number of Model Instances"
+    )
     fig_f1.savefig(results_path / "f1_histogram.pdf", bbox_inches="tight")
-    fig_conf_train = plot_confusion(np.mean(confusion_matrices["train"], axis=2), axlabels=("action", "observation"), clabel="Number of Samples")
-    fig_conf_train.savefig(results_path / "confusion_matrix_training.pdf", bbox_inches="tight")
-    fig_conf_test = plot_confusion(np.mean(confusion_matrices["test"], axis=2), axlabels=("action", "observation"), clabel="Number of Samples")
-    fig_conf_test.savefig(results_path / "confusion_matrix_testing.pdf", bbox_inches="tight")
-    plt.show()
-            
+    fig_loss_all = plt.figure(figsize=(W, W * 9 / 16), dpi=300 / (W / 3.5))
+    ax_all = fig_loss_all.subplots()
+    for participant_id, loss_curve in enumerate(loss_curves):
+        p_label = make_digit_str(participant_id, width=2)
+        fig_loss = plt.figure(figsize=(W, W * 9 / 16), dpi=300 / (W / 3.5))
+        ax = fig_loss.subplots()
+        ax.plot(loss_curve)
+        ax.set_xlabel("Epochs")
+        ax.set_ylabel("Training (Logistic) Loss")
+        ax.set_title(f"Training Loss for Model with P{p_label} Left Out")
+        fig_loss.savefig(results_path / f"loss_curve_P{p_label}_left_out.pdf")
+        if not show_plots:
+            plt.close(fig_loss)
+        ax_all.plot(loss_curve)
+    ax_all.set_xlabel("Epochs")
+    ax_all.set_ylabel("Training (Logistic) Loss")
+    ax_all.set_title(f"Training Loss for All Models")
+    fig_loss_all.savefig(results_path / f"loss_curves_all.pdf")
+    if show_plots:
+        plt.show()
 
-def plot_hist(data: np.ndarray, xlabel: str, ylabel:str) -> Figure:
-    w = 6.7
-    fig = plt.figure(figsize=(w, w*9/16), dpi=300/(w/3.5))
+
+def plot_hist(data: np.ndarray, xlabel: str, ylabel: str) -> Figure:
+    fig = plt.figure(figsize=(W, W * 9 / 16), dpi=300 / (W / 3.5))
     ax = fig.subplots()
     ax.hist(data)
     ax.set_xlabel(xlabel)
@@ -71,7 +93,7 @@ def plot_confusion(data: np.ndarray, axlabels: tuple[str], clabel: str) -> Figur
     fig, ax = plt.subplots()
     n = len(axlabels)
     im = ax.imshow(data)
-    cbar = ax.figure.colorbar(im, ax=ax)
+    cbar = ax.figure.colorbar(im, ax=ax)  # type:ignore
     cbar.ax.set_ylabel(clabel, rotation=-90, va="bottom")
     ax.set_xticks(np.arange(n), labels=axlabels)
     ax.set_xlabel("Predicted Label")
@@ -80,10 +102,18 @@ def plot_confusion(data: np.ndarray, axlabels: tuple[str], clabel: str) -> Figur
     # Create text annotations on each cell
     for i in range(n):
         for j in range(n):
-            ax.text(j,i, f"{data[i, j]:.1f}\n({100*data[i, j]/np.sum(data):.1f}%)", ha="center", va="center", color="k", backgroundcolor="w")
+            ax.text(
+                j,
+                i,
+                f"{data[i, j]:.1f}\n({100*data[i, j]/np.sum(data):.1f}%)",
+                ha="center",
+                va="center",
+                color="k",
+                backgroundcolor="w",
+            )
     return fig
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     args = get_args()
     main(**vars(args))
