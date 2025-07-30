@@ -62,12 +62,9 @@ def main(data_filepath: Path, results_path: Path, show_plots: bool):
     ax_all = fig_loss_all.subplots()
     for participant_id, loss_curve in enumerate(loss_curves):
         p_label = make_digit_str(participant_id, width=2)
+        title = f"Training Loss for Model with P{p_label} Left Out"
         fig_loss = plt.figure(figsize=(W, W * 9 / 16), dpi=300 / (W / 3.5))
-        ax = fig_loss.subplots()
-        ax.plot(loss_curve)
-        ax.set_xlabel("Epochs")
-        ax.set_ylabel("Training (Logistic) Loss")
-        ax.set_title(f"Training Loss for Model with P{p_label} Left Out")
+        plot_loss(fig_loss, loss_curve, title)
         fig_loss.savefig(results_path / f"loss_curve_P{p_label}_left_out.pdf")
         if not show_plots:
             plt.close(fig_loss)
@@ -112,6 +109,15 @@ def plot_confusion(data: np.ndarray, axlabels: tuple[str], clabel: str) -> Figur
                 backgroundcolor="w",
             )
     return fig
+
+
+def plot_loss(fig: Figure, data, title, ax = None):
+    if ax is None:
+        ax = fig.subplots()
+    ax.plot(data)
+    ax.set_xlabel("Epochs")
+    ax.set_ylabel("Training (Logistic) Loss")
+    ax.set_title(title)
 
 
 if __name__ == "__main__":
