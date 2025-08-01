@@ -28,9 +28,6 @@ def get_args():
 
 
 def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int]):
-    results_path = results_path / get_datetime()
-    if not results_path.exists():
-        results_path.mkdir(parents=True)
     # Load feature data file
     class_data_file = np.load(data_filepath)
     features, class_labels, group_labels = get_class_data(class_data_file, PARTICIPANTS)
@@ -49,6 +46,7 @@ def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int])
         scoring=("accuracy", "f1"),
         return_train_score=True,
         return_estimator=True,
+        verbose=1,
     )
     estimators = scores["estimator"]
     scores = {key: value for key, value in scores.items() if key != "estimator"}
@@ -72,6 +70,9 @@ def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int])
         "cross_validation_scores": scores,
         "training_loss": [estimator.loss_curve_ for estimator in estimators],
     }
+    results_path = results_path / get_datetime()
+    if not results_path.exists():
+        results_path.mkdir(parents=True)
     save_as_json(classification_results, path=(results_path / "cv_results.json"))
 
 
