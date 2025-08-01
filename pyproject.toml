@@ -19,4 +19,9 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+]
+
 [tool.setuptools_scm]
