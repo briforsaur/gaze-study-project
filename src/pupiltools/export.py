@@ -28,7 +28,7 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
         sub_folders = (subdir for subdir in folder_path.iterdir() if subdir.is_dir())
     if not output_path.exists():
         output_path.mkdir()
-    topics = ("pupil",)
+    topics = ("pupil", )
     if filetype == "csv":
         for sub_folder in sub_folders:
             export_data_csv(sub_folder, output_path, topics)
@@ -36,7 +36,7 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
         metadata = get_metadata(experiment_log, demographics_log)
         # Fix typo in the experiment log's datetime string
         metadata["header"]["date"] = fix_datetime_string(metadata["header"]["date"])
-        export_hdf_from_raw(folder_path, output_path, sub_folders, metadata)
+        export_hdf_from_raw(folder_path, output_path, sub_folders, metadata, topics)
 
 
 def get_subfolders_from_log(folder_path: Path, experiment_log: Path) -> Iterator[Path]:
@@ -51,7 +51,7 @@ def get_subfolders_from_log(folder_path: Path, experiment_log: Path) -> Iterator
 
 
 def export_data_csv(
-    folder_path: Path, output_path: Path, data_topics: tuple[str]
+    folder_path: Path, output_path: Path, data_topics: tuple[str, ...]
 ):
     """Export raw Pupil pldata and npy files to CSV"""
     world_ts_data = np.load(folder_path / ("world" + TS_FILE_SUFFIX))
@@ -68,9 +68,8 @@ def export_data_csv(
             writer.writerows(flattened_data)
 
 
-def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Iterator[Path], metadata: dict):
+def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Iterator[Path], metadata: dict, topics: tuple[str, ...] = ("pupil",)):
     """Export raw Pupil pldata and npy files to HDF5 format"""
-    topic = "pupil"
     export_file = output_path / f"{folder_path.name}.hdf5"
     with h5py.File(export_file, 'w') as f_root:
         f_root.attrs.update(metadata["header"])
@@ -78,42 +77,47 @@ def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Itera
         for trial_num, sub_folder in enumerate(sub_folders):
             trial_group = trials_group.create_group(make_digit_str(trial_num))
             trial_group.attrs.update(metadata["trial_record"][trial_num])
-            world_ts_data = np.load(sub_folder / ("world" + TS_FILE_SUFFIX))
-            data_file = sub_folder / f"{topic}{DATA_FILE_SUFFIX}"
-            data = extract_data(data_file, world_ts_data[0], method="3d")
-            timestamped_data = match_timestamps(data, world_ts_data)
-            grouped_data = {}
-            for data_entry in timestamped_data:
-                method = data_entry["topic"].split(".")[-1]
-                dataset_name = f"{topic}_eye{data_entry['id']}_{method}"
-                if dataset_name not in grouped_data:
-                    grouped_data[dataset_name] = []
-                grouped_data[dataset_name].append(data_entry)
-            for dataset_name, dataset_values in grouped_data.items():
-                dataset_values = pupildata_to_numpy(dataset_values)
-                dataset = trial_group.create_dataset(dataset_name, data=dataset_values)
-                name_parts = dataset_name.split("_")
-                dataset_metadata = {
-                    "topic": name_parts[0],
-                    "eye id": name_parts[1][-1],
-                    "method": "pye3d 0.3.0 real-time",
-                }
-                dataset.attrs.update(dataset_metadata)
+            for topic in topics:
+                world_ts_data = np.load(sub_folder / f"world{TS_FILE_SUFFIX}")
+                data_file = sub_folder / f"{topic}{DATA_FILE_SUFFIX}"
+                data = extract_data(data_file, world_ts_data[0], topic=topic, method="3d")
+                timestamped_data = match_timestamps(data, world_ts_data)
+                grouped_data = {}
+                for data_entry in timestamped_data:
+                    method = data_entry["topic"].split(".")[-1]
+                    dataset_name = f"{topic}_eye{data_entry['id']}_{method}"
+                    if dataset_name not in grouped_data:
+                        grouped_data[dataset_name] = []
+                    grouped_data[dataset_name].append(data_entry)
+                for dataset_name, dataset_values in grouped_data.items():
+                    dataset_values = pupildata_to_numpy(dataset_values)
+                    dataset = trial_group.create_dataset(dataset_name, data=dataset_values)
+                    name_parts = dataset_name.split("_")
+                    dataset_metadata = {
+                        "topic": name_parts[0],
+                        "eye id": name_parts[1][-1],
+                        "method": "pye3d 0.3.0 real-time",
+                    }
+                    dataset.attrs.update(dataset_metadata)
 
 
 def extract_data(
-    data_file: Path, t_start: float, method: str = "3d"
+    data_file: Path, t_start: float, topic: str, method: str = "3d"
 ) -> Iterator[dict]:
     """Extract Pupil data from pldata (msgpack) format"""
     with open(data_file, "rb") as f:
         unpacker = mpk.Unpacker(f, use_list=False)
-        topic: str
-        for topic, b_obj in unpacker:
-            # Topic strings are of the form [top-level-topic].[eye_id].[method_id]
-            if topic.split(".")[2] == method:
-                data = mpk.unpackb(b_obj)
-                if data["timestamp"] >= t_start:
-                    yield data
+        msg_topic: str
+        for msg_topic, b_obj in unpacker:
+            if topic == "pupil" and msg_topic == topic:
+                # Topic strings are of the form pupil.[eye_id].[method_id]
+                if msg_topic.split(".")[2] == method:
+                    data = mpk.unpackb(b_obj)
+                    if data["timestamp"] >= t_start:
+                        yield data
+            elif topic == "gaze":
+                # Topic strings are of the form gaze.3d.01
+                print(msg_topic)
 
 
 def match_timestamps(data: Iterator[dict], ts_data: np.ndarray) -> Iterator[dict]:
