@@ -21,6 +21,8 @@ circle_3d_dt = np.dtype(
 projected_sphere_dt = np.dtype(
     [("center", planar_position_dt), ("axes", axes_dt), ("angle", np.double)]
 )
+eyes_base_dt = np.dtype([("eye0", np.double), ("eye1", np.double)])
+eye_coords_dt = np.dtype([("eye0", position_dt), ("eye1", position_dt)])
 
 
 pupil_datatype = np.dtype(
@@ -37,5 +39,19 @@ pupil_datatype = np.dtype(
         ("theta", np.double),
         ("phi", np.double),
         ("projected_sphere", projected_sphere_dt),
+    ]
+)
+
+
+gaze_datatype = np.dtype(
+    [
+        ("timestamp", np.double),
+        ("world_index", np.longlong),
+        ("confidence", np.double),
+        ("norm_pos", planar_position_dt),
+        ("base_data", eyes_base_dt),
+        ("gaze_point_3d", position_dt),
+        ("eye_centers_3d", eye_coords_dt),
+        ("gaze_normals_3d", eye_coords_dt)
     ]
 )
