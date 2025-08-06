@@ -27,7 +27,7 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
         # Find all subfolders within the folder_path
         sub_folders = (subdir for subdir in folder_path.iterdir() if subdir.is_dir())
     if not output_path.exists():
-        output_path.mkdir()
+        output_path.mkdir(parents=True)
     topics = ("pupil", )
     if filetype == "csv":
         for sub_folder in sub_folders:
