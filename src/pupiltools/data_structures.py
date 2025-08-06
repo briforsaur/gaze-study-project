@@ -178,7 +178,6 @@ class Circle3D:
         self.radius = radius
 
 
-@dataclass
 class ProjectedSphere(Ellipse):
     pass
 
