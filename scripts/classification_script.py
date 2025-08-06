@@ -45,7 +45,8 @@ def main(data_filepath: Path, results_path: Path, hidden_layer_sizes: list[int])
     scores = cross_validate(
         clf, features, class_labels, cv=cv_scheme,
         scoring=('accuracy', 'f1'),
-        return_train_score=True)
+        return_train_score=True,
+        verbose=10)
     print(f"Mean train accuracy: {scores['train_accuracy'].mean()}\nStd. Dev.: {scores['train_accuracy'].std()}")
     print(f"Mean test accuracy: {scores['test_accuracy'].mean()}\nStd. Dev.: {scores['test_accuracy'].std()}")
     print(f"Mean train f1: {scores['train_f1'].mean()}\nStd. Dev.: {scores['train_f1'].std()}")
