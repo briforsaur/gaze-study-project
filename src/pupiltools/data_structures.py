@@ -109,24 +109,6 @@ class FieldMapKeyError(Exception):
     pass
 
 
-if __name__=='__main__':
-    nested_dict = {
-        "timestamp": "pupil_timestamp",
-        "world_index": "world_index",
-        "id": "eye_id",
-        "confidence": "confidence",
-        "norm_pos": ["norm_pos_x", "norm_pos_y"],
-        "diameter": "diameter",
-        "method": "method",
-        "ellipse": {
-            "center": ["ellipse_center_x", "ellipse_center_y"],
-            "axes": ["ellipse_axis_a", "ellipse_axis_b"],
-            "angle": "ellipse_angle",
-        },
-    }
-    print(get_flattened_values(nested_dict))
-
-
 @dataclass
 class Cartesian2D:
     x: float
@@ -210,11 +192,11 @@ class PupilData:
             theta: float,
             phi: float,
             projected_sphere: dict[str, list[float] | float],
-            id: int = -1,
-            topic: str = '',
-            method: str = '',
-            location: list[float] = None, #type: ignore
-            model_confidence: float = -1.0,
+            id: int,
+            topic: str,
+            method: str,
+            location: list[float], #type: ignore
+            model_confidence: float,
             world_index: int = -1) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
@@ -228,16 +210,11 @@ class PupilData:
         self.theta = theta
         self.phi = phi
         self.projected_sphere = ProjectedSphere(**projected_sphere) #type: ignore
-        if id != -1:
-            self.id = id
-        if topic != '':
-            self.topic = topic
-        if method != '':
-            self.method = method
-        if location != None:
-            self.location = location
-        if model_confidence != -1.0:
-            self.model_confidence = model_confidence
+        self.id = id
+        self.topic = topic
+        self.method = method
+        self.location = location
+        self.model_confidence = model_confidence
     
     def fields_to_tuple(self) -> tuple:
         """Create tuple only from fields, not all parameters"""
@@ -268,15 +245,29 @@ class GazeData:
     gaze_normals_3d: list[Cartesian3D]
     topic: str
 
-    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], eye_centers_3d: dict[str, list[float]], gaze_normals_3d: dict[str, list[float]], topic: str, world_index: int = -1) -> None:
+    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], topic: str, eye_centers_3d: dict[str, list[float]] = None, gaze_normals_3d: dict[str, list[float]] = None, world_index: int = -1, **kw) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
         self.confidence = confidence
         self.norm_pos = Cartesian2D(*norm_pos)
         self.base_data = [PupilData(**data) for data in base_data]
         self.gaze_point_3d = Cartesian3D(*gaze_point_3d)
-        self.eye_centers_3d = [Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()]
-        self.gaze_normals_3d = [Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()]
+        if eye_centers_3d is not None:
+            self.eye_centers_3d = [Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()]
+            self.gaze_normals_3d = [Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()]
+        else:
+            # Data for both eyes is not available
+            # eye_centers_3d and gaze_normals_3d are not in the data message
+            # The topic will be gaze.3d.0. or gaze.3d.1. instead of gaze.3d.01.
+            eye_id = int(topic.split(".")[2])
+            # eye_centers_3d and gaze_normals_3d are replaced by singular versions
+            eye_center_3d = kw.pop("eye_center_3d")
+            gaze_normal_3d = kw.pop("gaze_normal_3d")
+            default = Cartesian3D(*np.full((3,), np.nan))
+            self.eye_centers_3d = [default, default]
+            self.gaze_normals_3d = [default, default]
+            self.eye_centers_3d[eye_id] = Cartesian3D(*eye_center_3d)
+            self.gaze_normals_3d[eye_id] = Cartesian3D(*gaze_normal_3d)
         self.topic = topic
         if world_index != -1:
             self.world_index = world_index
@@ -291,7 +282,13 @@ class GazeData:
                 case Cartesian2D() | Cartesian3D():
                     data_list.append(astuple(field_value))
                 case list() if isinstance(field_value[0], PupilData):
-                    data = [values.timestamp for values in field_value]
+                    if len(field_value) > 1:
+                        data = [values.timestamp for values in field_value]
+                    else:
+                        # One of the eyes was not available
+                        data = [np.nan, np.nan]
+                        eye_id = int(field_value[0].id)
+                        data[eye_id] = field_value[0].timestamp
                     data_list.append(tuple(data))
                 case list() if isinstance(field_value[0], Cartesian3D):
                     data = [astuple(values) for values in field_value]
@@ -301,3 +298,21 @@ class GazeData:
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
         return np.array(data, dtype=gaze_datatype)
+    
+
+if __name__=='__main__':
+    nested_dict = {
+        "timestamp": "pupil_timestamp",
+        "world_index": "world_index",
+        "id": "eye_id",
+        "confidence": "confidence",
+        "norm_pos": ["norm_pos_x", "norm_pos_y"],
+        "diameter": "diameter",
+        "method": "method",
+        "ellipse": {
+            "center": ["ellipse_center_x", "ellipse_center_y"],
+            "axes": ["ellipse_axis_a", "ellipse_axis_b"],
+            "angle": "ellipse_angle",
+        },
+    }
+    print(get_flattened_values(nested_dict))
