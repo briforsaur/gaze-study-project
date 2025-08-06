@@ -7,8 +7,8 @@ from collections.abc import Iterator, Container, Iterable
 import csv
 import json
 from typing import Any
-from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError
-from .aliases import pupil_datatype, ResampledParticipantDataType
+from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError, PupilData, GazeData
+from .aliases import pupil_datatype, gaze_datatype, ResampledParticipantDataType
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
 from os import PathLike
@@ -28,7 +28,7 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
         sub_folders = (subdir for subdir in folder_path.iterdir() if subdir.is_dir())
     if not output_path.exists():
         output_path.mkdir(parents=True)
-    topics = ("pupil", )
+    topics = ("pupil", "gaze")
     if filetype == "csv":
         for sub_folder in sub_folders:
             export_data_csv(sub_folder, output_path, topics)
@@ -77,57 +77,68 @@ def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Itera
         for trial_num, sub_folder in enumerate(sub_folders):
             trial_group = trials_group.create_group(make_digit_str(trial_num))
             trial_group.attrs.update(metadata["trial_record"][trial_num])
+            world_ts_data = np.load(sub_folder / f"world{TS_FILE_SUFFIX}")
             for topic in topics:
-                world_ts_data = np.load(sub_folder / f"world{TS_FILE_SUFFIX}")
                 data_file = sub_folder / f"{topic}{DATA_FILE_SUFFIX}"
                 data = extract_data(data_file, world_ts_data[0], topic=topic, method="3d")
                 timestamped_data = match_timestamps(data, world_ts_data)
                 grouped_data = {}
                 for data_entry in timestamped_data:
-                    method = data_entry["topic"].split(".")[-1]
-                    dataset_name = f"{topic}_eye{data_entry['id']}_{method}"
+                    method = data_entry.topic.split(".")[-1]
+                    dataset_name = topic
+                    if topic == "pupil":
+                        dataset_name = dataset_name + f"_eye{data_entry.id}_{method}"
                     if dataset_name not in grouped_data:
                         grouped_data[dataset_name] = []
-                    grouped_data[dataset_name].append(data_entry)
+                    grouped_data[dataset_name].append(data_entry.fields_to_tuple())
                 for dataset_name, dataset_values in grouped_data.items():
-                    dataset_values = pupildata_to_numpy(dataset_values)
-                    dataset = trial_group.create_dataset(dataset_name, data=dataset_values)
                     name_parts = dataset_name.split("_")
-                    dataset_metadata = {
-                        "topic": name_parts[0],
-                        "eye id": name_parts[1][-1],
-                        "method": "pye3d 0.3.0 real-time",
-                    }
+                    dataset_metadata = {"topic": name_parts[0]}
+                    if name_parts[0] == "pupil":
+                        dataset_metadata.update({
+                            "eye id": name_parts[1][-1],
+                            "method": "pye3d 0.3.0 real-time",
+                        })
+                        dtype = pupil_datatype
+                    elif name_parts[0] == "gaze":
+                        dtype = gaze_datatype
+                    dataset_values = np.array(dataset_values, dtype=dtype)
+                    dataset = trial_group.create_dataset(dataset_name, data=dataset_values)
                     dataset.attrs.update(dataset_metadata)
 
 
 def extract_data(
     data_file: Path, t_start: float, topic: str, method: str = "3d"
-) -> Iterator[dict]:
+) -> Iterator[PupilData | GazeData]:
     """Extract Pupil data from pldata (msgpack) format"""
     with open(data_file, "rb") as f:
         unpacker = mpk.Unpacker(f, use_list=False)
         msg_topic: str
         for msg_topic, b_obj in unpacker:
-            if topic == "pupil" and msg_topic == topic:
+            main_topic = msg_topic.split(".")[0]
+            if topic == "pupil" and main_topic == topic:
                 # Topic strings are of the form pupil.[eye_id].[method_id]
                 if msg_topic.split(".")[2] == method:
                     data = mpk.unpackb(b_obj)
-                    if data["timestamp"] >= t_start:
+                    data = PupilData(**data)
+                    if data.timestamp >= t_start:
                         yield data
-            elif topic == "gaze":
+            elif topic == "gaze" and main_topic == topic:
                 # Topic strings are of the form gaze.3d.01
-                print(msg_topic)
+                data = mpk.unpackb(b_obj)
+                data = GazeData(**data)
+                if data.timestamp >= t_start:
+                    yield data
 
 
-def match_timestamps(data: Iterator[dict], ts_data: np.ndarray) -> Iterator[dict]:
+def match_timestamps(data: Iterator[PupilData | GazeData], ts_data: np.ndarray) -> Iterator[PupilData | GazeData]:
     """Match data points to the nearest world frame index
 
     Adapted from:
     https://stackoverflow.com/a/8929827
     """
     for entry in data:
-        target = entry["timestamp"]
+        target = entry.timestamp
         # Find the index where ts_data[idx-1] < target <= ts_data[idx]
         idx = ts_data.searchsorted(target)
         # If the closest index is 0 or the length of the list, clip to 1 or length - 1
@@ -136,7 +147,7 @@ def match_timestamps(data: Iterator[dict], ts_data: np.ndarray) -> Iterator[dict
         right = ts_data[idx]
         # Change idx to match the closer of the left or right index
         idx -= target - left < right - target
-        entry.update({"world_index": int(idx)})
+        entry.world_index =  int(idx)
         yield entry
 
 
