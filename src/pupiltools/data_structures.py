@@ -1,5 +1,9 @@
 import numpy as np
 import collections.abc as abc
+from dataclasses import dataclass, fields, astuple
+from typing import Any
+
+from .aliases import pupil_datatype, gaze_datatype
 
 
 pupil_to_csv_fieldmap = {
@@ -121,3 +125,180 @@ if __name__=='__main__':
         },
     }
     print(get_flattened_values(nested_dict))
+
+
+@dataclass
+class Cartesian2D:
+    x: float
+    y: float
+
+
+@dataclass
+class Cartesian3D(Cartesian2D):
+    z: float
+
+
+@dataclass
+class Axes:
+    a: float
+    b: float
+
+
+@dataclass(init=False)
+class Ellipse:
+    center: Cartesian2D
+    axes: Axes
+    angle: float
+
+    def __init__(self, center: list[float], axes: list[float], angle: float) -> None:
+        self.center = Cartesian2D(*center)
+        self.axes = Axes(*axes)
+        self.angle = angle
+
+
+@dataclass(init=False)
+class Sphere:
+    center: Cartesian3D
+    radius: float
+
+    def __init__(self, center: list[float], radius: float) -> None:
+        self.center = Cartesian3D(*center)
+        self.radius = radius
+
+
+@dataclass
+class Circle3D:
+    center: Cartesian3D
+    normal: Cartesian3D
+    radius: float
+
+    def __init__(self, center: list[float], normal: list[float], radius: float) -> None:
+        self.center = Cartesian3D(*center)
+        self.normal = Cartesian3D(*normal)
+        self.radius = radius
+
+
+@dataclass
+class ProjectedSphere(Ellipse):
+    pass
+
+
+@dataclass(init=False)
+class PupilData:
+    timestamp: float
+    world_index: int
+    confidence: float
+    norm_pos: Cartesian2D
+    diameter: float
+    ellipse: Ellipse
+    diameter_3d: float
+    sphere: Sphere
+    circle_3d: Circle3D
+    theta: float
+    phi: float
+    projected_sphere: ProjectedSphere
+
+    def __init__(
+            self, 
+            timestamp: float,
+            confidence: float,
+            norm_pos: list[float],
+            diameter: float,
+            ellipse: dict[str, list[float] | float],
+            diameter_3d: float,
+            sphere: dict[str, list[float] | float],
+            circle_3d: dict[str, list[float] | float],
+            theta: float,
+            phi: float,
+            projected_sphere: dict[str, list[float] | float],
+            id: int = -1,
+            topic: str = '',
+            method: str = '',
+            location: list[float] = None, #type: ignore
+            model_confidence: float = -1.0,
+            world_index: int = -1) -> None:
+        self.timestamp = timestamp
+        self.world_index = world_index
+        self.confidence = confidence
+        self.norm_pos = Cartesian2D(*norm_pos)
+        self.diameter = diameter
+        self.ellipse = Ellipse(**ellipse) #type: ignore
+        self.diameter_3d = diameter_3d
+        self.sphere = Sphere(**sphere) #type: ignore
+        self.circle_3d = Circle3D(**circle_3d) #type: ignore
+        self.theta = theta
+        self.phi = phi
+        self.projected_sphere = ProjectedSphere(**projected_sphere) #type: ignore
+        if id != -1:
+            self.id = id
+        if topic != '':
+            self.topic = topic
+        if method != '':
+            self.method = method
+        if location != None:
+            self.location = location
+        if model_confidence != -1.0:
+            self.model_confidence = model_confidence
+    
+    def fields_to_tuple(self) -> tuple:
+        """Create tuple only from fields, not all parameters"""
+        data_list = []
+        for field in fields(self):
+            field_value = getattr(self, field.name)
+            match field_value:
+                case float() | int():
+                    data_list.append(field_value)
+                case Cartesian2D() | Cartesian3D() | Ellipse() | Sphere() | Circle3D() | ProjectedSphere():
+                    data_list.append(astuple(field_value))
+        return tuple(data_list)
+    
+    def to_numpy_recarray(self) -> np.ndarray:
+        data = self.fields_to_tuple()
+        return np.array(data, dtype=pupil_datatype)
+
+
+@dataclass(init=False)
+class GazeData:
+    timestamp: float
+    world_index: int
+    confidence: float
+    norm_pos: Cartesian2D
+    base_data: list[PupilData]
+    gaze_point_3d: Cartesian3D
+    eye_centers_3d: list[Cartesian3D]
+    gaze_normals_3d: list[Cartesian3D]
+    topic: str
+
+    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], eye_centers_3d: dict[str, list[float]], gaze_normals_3d: dict[str, list[float]], topic: str, world_index: int = -1) -> None:
+        self.timestamp = timestamp
+        self.world_index = world_index
+        self.confidence = confidence
+        self.norm_pos = Cartesian2D(*norm_pos)
+        self.base_data = [PupilData(**data) for data in base_data]
+        self.gaze_point_3d = Cartesian3D(*gaze_point_3d)
+        self.eye_centers_3d = [Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()]
+        self.gaze_normals_3d = [Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()]
+        self.topic = topic
+        if world_index != -1:
+            self.world_index = world_index
+
+    def fields_to_tuple(self) -> tuple:
+        data_list = []
+        for field in fields(self):
+            field_value = getattr(self, field.name)
+            match field_value:
+                case float() | int():
+                    data_list.append(field_value)
+                case Cartesian2D() | Cartesian3D():
+                    data_list.append(astuple(field_value))
+                case list() if isinstance(field_value[0], PupilData):
+                    data = [values.timestamp for values in field_value]
+                    data_list.append(tuple(data))
+                case list() if isinstance(field_value[0], Cartesian3D):
+                    data = [astuple(values) for values in field_value]
+                    data_list.append(tuple(data))
+        return tuple(data_list)
+
+    def to_numpy_recarray(self) -> np.ndarray:
+        data = self.fields_to_tuple()
+        return np.array(data, dtype=gaze_datatype)
