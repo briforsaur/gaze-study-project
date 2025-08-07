@@ -1,6 +1,6 @@
 import numpy as np
 import collections.abc as abc
-from dataclasses import dataclass, fields, astuple
+from dataclasses import dataclass, fields, astuple, asdict
 from typing import Any
 
 from .aliases import pupil_datatype, gaze_datatype
@@ -300,19 +300,91 @@ class GazeData:
         return np.array(data, dtype=gaze_datatype)
     
 
+def get_flattened_fields(obj, obj_tuple) -> tuple[tuple[str, ...], tuple[float | int]]:
+    field_list = fields(obj)
+    name_list = []
+    data_list = []
+    for field, data in zip(field_list, obj_tuple):
+        name = field.name
+        value = getattr(obj, name)
+        match value:
+            case float() | int():
+                name_list.append(name)
+                data_list.append(data)
+            case list() if isinstance(value[0], PupilData):
+                for i in range(2):
+                    name_list.append(f"{name}_{i}_timestamp")
+                    data_list.append(data[i])
+            case list():
+                for (i, item), data_item in zip(enumerate(value), data):
+                    sub_names, sub_data = get_flattened_fields(item, data_item)
+                    names = [f"{name}_{i}_{sub_name}" for sub_name in sub_names]
+                    name_list.extend(names)
+                    data_list.extend(sub_data)
+            case _:
+                sub_names, sub_data = get_flattened_fields(value, data)
+                names = [f"{name}_{sub_name}" for sub_name in sub_names]
+                name_list.extend(names)
+                data_list.extend(sub_data)
+    return name_list, data_list
+ 
+
 if __name__=='__main__':
-    nested_dict = {
-        "timestamp": "pupil_timestamp",
-        "world_index": "world_index",
-        "id": "eye_id",
-        "confidence": "confidence",
-        "norm_pos": ["norm_pos_x", "norm_pos_y"],
-        "diameter": "diameter",
-        "method": "method",
-        "ellipse": {
-            "center": ["ellipse_center_x", "ellipse_center_y"],
-            "axes": ["ellipse_axis_a", "ellipse_axis_b"],
-            "angle": "ellipse_angle",
-        },
+    test_p_dict = {
+        'id': 0, 
+        'topic': 'pupil.0.3d', 
+        'method': 'pye3d 0.3.0 real-time', 
+        'norm_pos': [0.24351970741892207, 0.44267443593140643], 
+        'diameter': 27.32890140708419, 
+        'confidence': 1.0, 
+        'timestamp': 345.96117200001027, 
+        'sphere': {
+            'center': [0.26086557200170474, -2.328750597080022, 39.13150616664784], 
+            'radius': 10.392304845413264
+        }, 
+        'projected_sphere': {
+            'center': [97.74302257519636, 79.10477264712452], 
+            'axes': [180.19507618312036, 180.19507618312036], 
+            'angle': 0.0
+        }, 
+        'circle_3d': {
+            'center': [-4.80148189549971, 1.1571421916810967, 30.751697721131602], 
+            'normal': [-0.48712461218222697, 0.3354301899929012, -0.806347443629383], 
+            'radius': 1.2889188296557954
+        }, 
+        'diameter_3d': 2.577837659311591, 
+        'ellipse': {
+            'center': [46.75578382443304, 107.00650830116997], 
+            'axes': [21.31778407928547, 27.32890140708419], 
+            'angle': 148.42380933109075
+        }, 
+        'location': [46.75578382443304, 107.00650830116997], 
+        'model_confidence': 1.0, 
+        'theta': 1.228734488061224, 
+        'phi': -2.1142342768113487
     }
-    print(get_flattened_values(nested_dict))
+    test_g_dict = {
+        'eye_centers_3d': {
+            '0': [19.98571631324934, 14.985869912781883, -19.92116119749855], 
+            '1': [-40.022254973480145, 15.001520605051482, -19.949131602653416]
+        }, 
+        'gaze_normals_3d': {
+            '0': [-0.10548705527122566, -0.39875290894360527, 0.9109712392711519], 
+            '1': [0.07872946880333444, -0.41731550273288076, 0.9053449298034135]
+        },
+        'gaze_point_3d': [-14.411410769452052, -117.89830813333006, 275.84140173241457], 
+        'norm_pos': [0.46460641707690487, 0.8831982210630259], 
+        'topic': 'gaze.3d.01.', 
+        'confidence': 1.0, 
+        'timestamp': 345.9355710000091, 
+        'base_data': [
+            {'id': 0, 'topic': 'pupil.0.3d', 'method': 'pye3d 0.3.0 real-time', 'norm_pos': [0.24404183349315742, 0.4424241919490489], 'diameter': 27.47196090665017, 'confidence': 1.0, 'timestamp': 345.9354560000065, 'sphere': {'center': [0.26086557200170474, -2.328750597080022, 39.13150616664784], 'radius': 10.392304845413264}, 'projected_sphere': {'center': [97.74302257519636, 79.10477264712452], 'axes': [180.19507618312036, 180.19507618312036], 'angle': 0.0}, 'circle_3d': {'center': [-4.800008048072229, 1.19406680080027, 30.76626165241924], 'normal': [-0.48698279114739357, 0.3389832621620139, -0.8049460286878204], 'radius': 1.2953123337339543}, 'diameter_3d': 2.5906246674679085, 'ellipse': {'center': [46.85603203068622, 107.0545551457826], 'axes': [21.400981241810108, 27.47196090665017], 'angle': 148.15896622973645}, 'location': [46.85603203068622, 107.0545551457826], 'model_confidence': 1.0, 'theta': 1.224960364943982, 'phi': -2.114875498332212},
+            {'id': 1, 'topic': 'pupil.1.3d', 'method': 'pye3d 0.3.0 real-time', 'norm_pos': [0.39628283763452093, 0.5210280400311091], 'diameter': 25.400197970234878, 'confidence': 1.0, 'timestamp': 345.93568600001163, 'sphere': {'center': [3.487830222643322, 2.4756545941550567, 42.027153211782256], 'radius': 10.392304845413264}, 'projected_sphere': {'center': [119.3480654960734, 112.59649163741423], 'axes': [167.46926491231036, 167.46926491231036], 'angle': 0.0}, 'circle_3d': {'center': [-1.4141897724228576, -0.9453525429509337, 33.526158556105706], 'normal': [-0.4716970939540645, -0.32918656525129575, -0.8180085921390711], 'radius': 1.3279301377834947}, 'diameter_3d': 2.6558602755669893, 'ellipse': {'center': [76.08630482582802, 91.96261631402706], 'axes': [21.109957465289888, 25.400197970234878], 'angle': 32.732852846330935}, 'location': [76.08630482582802, 91.96261631402706], 'model_confidence': 1.0, 'theta': 1.9062383248345953, 'phi': -2.0938628049026704}
+        ]
+    }
+    test_p_data = PupilData(**test_p_dict)
+    field_list, data_list = get_flattened_fields(test_p_data, test_p_data.fields_to_tuple())
+    print(*zip(field_list, data_list))
+    test_g_data = GazeData(**test_g_dict)
+    field_list, data_list = get_flattened_fields(test_g_data, test_g_data.fields_to_tuple())
+    print(*zip(field_list, data_list))
