@@ -1,5 +1,4 @@
 import numpy as np
-import collections.abc as abc
 from dataclasses import dataclass, fields, astuple
 from typing import Any
 
@@ -245,14 +244,14 @@ class GazeData:
     gaze_normals_3d: list[Cartesian3D]
     topic: str
 
-    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], topic: str, eye_centers_3d: dict[str, list[float]] = None, gaze_normals_3d: dict[str, list[float]] = None, world_index: int = -1, **kw) -> None:
+    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], topic: str, eye_centers_3d: dict[str, list[float]] | None = None, gaze_normals_3d: dict[str, list[float]] | None = None, world_index: int = -1, **kw) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
         self.confidence = confidence
         self.norm_pos = Cartesian2D(*norm_pos)
         self.base_data = [PupilData(**data) for data in base_data]
         self.gaze_point_3d = Cartesian3D(*gaze_point_3d)
-        if eye_centers_3d is not None:
+        if eye_centers_3d is not None and gaze_normals_3d is not None:
             self.eye_centers_3d = [Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()]
             self.gaze_normals_3d = [Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()]
         else:
