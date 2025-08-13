@@ -55,7 +55,7 @@ pupil_to_csv_fieldmap = {
 
 def get_flattened_values(input_dict: dict) -> tuple[str]:
     """Get a tuple of values in a nested dictionary of strings and lists of strings
-    
+
     The purpose of this function is to generate a list of field names from the mapping
     between the names of the keys in the nested dictionaries stored in the pldata files
     and the columns of the CSV file exported by Pupil Player.
@@ -83,7 +83,7 @@ def get_flattened_values(input_dict: dict) -> tuple[str]:
     ...     }
     ... }
     >>> get_flattened_values(nested_dict)
-    ('pupil_timestamp', 'norm_pos_x', 'norm_pos_y', 'ellipse_center_x', 
+    ('pupil_timestamp', 'norm_pos_x', 'norm_pos_y', 'ellipse_center_x',
     'ellipse_center_y', 'ellipse_axis_a', 'ellipse_axis_b', 'ellipse_angle')
     """
     flattened_values = []
@@ -179,42 +179,43 @@ class PupilData:
     projected_sphere: ProjectedSphere
 
     def __init__(
-            self, 
-            timestamp: float,
-            confidence: float,
-            norm_pos: list[float],
-            diameter: float,
-            ellipse: dict[str, list[float] | float],
-            diameter_3d: float,
-            sphere: dict[str, list[float] | float],
-            circle_3d: dict[str, list[float] | float],
-            theta: float,
-            phi: float,
-            projected_sphere: dict[str, list[float] | float],
-            id: int,
-            topic: str,
-            method: str,
-            location: list[float], #type: ignore
-            model_confidence: float,
-            world_index: int = -1) -> None:
+        self,
+        timestamp: float,
+        confidence: float,
+        norm_pos: list[float],
+        diameter: float,
+        ellipse: dict[str, list[float] | float],
+        diameter_3d: float,
+        sphere: dict[str, list[float] | float],
+        circle_3d: dict[str, list[float] | float],
+        theta: float,
+        phi: float,
+        projected_sphere: dict[str, list[float] | float],
+        id: int,
+        topic: str,
+        method: str,
+        location: list[float],  # type: ignore
+        model_confidence: float,
+        world_index: int = -1,
+    ) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
         self.confidence = confidence
         self.norm_pos = Cartesian2D(*norm_pos)
         self.diameter = diameter
-        self.ellipse = Ellipse(**ellipse) #type: ignore
+        self.ellipse = Ellipse(**ellipse)  # type: ignore
         self.diameter_3d = diameter_3d
-        self.sphere = Sphere(**sphere) #type: ignore
-        self.circle_3d = Circle3D(**circle_3d) #type: ignore
+        self.sphere = Sphere(**sphere)  # type: ignore
+        self.circle_3d = Circle3D(**circle_3d)  # type: ignore
         self.theta = theta
         self.phi = phi
-        self.projected_sphere = ProjectedSphere(**projected_sphere) #type: ignore
+        self.projected_sphere = ProjectedSphere(**projected_sphere)  # type: ignore
         self.id = id
         self.topic = topic
         self.method = method
         self.location = location
         self.model_confidence = model_confidence
-    
+
     def fields_to_tuple(self) -> tuple:
         """Create tuple only from fields, not all parameters"""
         data_list = []
@@ -223,10 +224,17 @@ class PupilData:
             match field_value:
                 case float() | int():
                     data_list.append(field_value)
-                case Cartesian2D() | Cartesian3D() | Ellipse() | Sphere() | Circle3D() | ProjectedSphere():
+                case (
+                    Cartesian2D()
+                    | Cartesian3D()
+                    | Ellipse()
+                    | Sphere()
+                    | Circle3D()
+                    | ProjectedSphere()
+                ):
                     data_list.append(astuple(field_value))
         return tuple(data_list)
-    
+
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
         return np.array(data, dtype=pupil_datatype)
@@ -244,7 +252,19 @@ class GazeData:
     gaze_normals_3d: list[Cartesian3D]
     topic: str
 
-    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], topic: str, eye_centers_3d: dict[str, list[float]] | None = None, gaze_normals_3d: dict[str, list[float]] | None = None, world_index: int = -1, **kw) -> None:
+    def __init__(
+        self,
+        timestamp: float,
+        confidence: float,
+        norm_pos: list[float],
+        base_data: list[dict[str, Any]],
+        gaze_point_3d: list[float],
+        topic: str,
+        eye_centers_3d: dict[str, list[float]] | None = None,
+        gaze_normals_3d: dict[str, list[float]] | None = None,
+        world_index: int = -1,
+        **kw,
+    ) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
         self.confidence = confidence
@@ -252,8 +272,12 @@ class GazeData:
         self.base_data = [PupilData(**data) for data in base_data]
         self.gaze_point_3d = Cartesian3D(*gaze_point_3d)
         if eye_centers_3d is not None and gaze_normals_3d is not None:
-            self.eye_centers_3d = [Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()]
-            self.gaze_normals_3d = [Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()]
+            self.eye_centers_3d = [
+                Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()
+            ]
+            self.gaze_normals_3d = [
+                Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()
+            ]
         else:
             # Data for both eyes is not available
             # eye_centers_3d and gaze_normals_3d are not in the data message
@@ -297,9 +321,9 @@ class GazeData:
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
         return np.array(data, dtype=gaze_datatype)
-    
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     nested_dict = {
         "timestamp": "pupil_timestamp",
         "world_index": "world_index",
