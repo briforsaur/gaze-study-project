@@ -234,6 +234,12 @@ class PupilData:
                 ):
                     data_list.append(astuple(field_value))
         return tuple(data_list)
+    
+    def fields_to_tuple_for_csv(self) -> tuple:
+        field_values = list(self.fields_to_tuple())
+        field_values.append(self.id)
+        return tuple(field_values)
+
 
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
@@ -250,7 +256,6 @@ class GazeData:
     gaze_point_3d: Cartesian3D
     eye_centers_3d: list[Cartesian3D]
     gaze_normals_3d: list[Cartesian3D]
-    topic: str
 
     def __init__(
         self,
@@ -259,9 +264,9 @@ class GazeData:
         norm_pos: list[float],
         base_data: list[dict[str, Any]],
         gaze_point_3d: list[float],
-        topic: str,
         eye_centers_3d: dict[str, list[float]] | None = None,
         gaze_normals_3d: dict[str, list[float]] | None = None,
+        topic: str = "",
         world_index: int = -1,
         **kw,
     ) -> None:
@@ -317,25 +322,55 @@ class GazeData:
                     data = [astuple(values) for values in field_value]
                     data_list.append(tuple(data))
         return tuple(data_list)
+    
+    def fields_to_tuple_for_csv(self) -> tuple:
+        return self.fields_to_tuple()
 
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
         return np.array(data, dtype=gaze_datatype)
+    
+
+def _get_csv_header(class_obj: type) -> list[str]:
+    header_list = []
+    for field in fields(class_obj):
+        f_type = field.type
+        f_name = field.name
+        if f_type == float or f_type == int or f_type == str:
+            header_list.append(f_name)
+        elif f_type == list[PupilData]:
+            field_names = [f"{f_name}_{i}_timestamp" for i in range(2)]
+            header_list.extend(field_names)
+        elif f_type == list[Cartesian3D]:
+            sub_names = _get_csv_header(Cartesian3D)
+            for i in range(2):
+                field_names = [f"{f_name}_{i}_{sub_name}" for sub_name in sub_names]
+                header_list.extend(field_names)
+        else:
+            sub_names = _get_csv_header(f_type) # type: ignore
+            field_names = [f"{f_name}_{sub_name}" for sub_name in sub_names]
+            header_list.extend(field_names)
+    if class_obj == PupilData:
+        header_list.append("eye_id")
+    return header_list
+
+
+PUPIL_CSV_FIELDS = _get_csv_header(PupilData)
+GAZE_CSV_FIELDS = _get_csv_header(GazeData)
+
+
+def flatten_nested_tuple(data: tuple[Any]) -> tuple[Any]:
+    data_list = []
+    for item in data:
+        match item:
+            case float() | int() | str():
+                data_list.append(item)
+            case tuple():
+                sub_items = flatten_nested_tuple(item)
+                data_list.extend(sub_items)
+    return tuple(data_list)
 
 
 if __name__ == "__main__":
-    nested_dict = {
-        "timestamp": "pupil_timestamp",
-        "world_index": "world_index",
-        "id": "eye_id",
-        "confidence": "confidence",
-        "norm_pos": ["norm_pos_x", "norm_pos_y"],
-        "diameter": "diameter",
-        "method": "method",
-        "ellipse": {
-            "center": ["ellipse_center_x", "ellipse_center_y"],
-            "axes": ["ellipse_axis_a", "ellipse_axis_b"],
-            "angle": "ellipse_angle",
-        },
-    }
-    print(get_flattened_values(nested_dict))
+    print(_get_csv_header(PupilData))
+    print(_get_csv_header(GazeData))

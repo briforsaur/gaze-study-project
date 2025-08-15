@@ -7,7 +7,7 @@ from collections.abc import Iterator, Container, Iterable
 import csv
 import json
 from typing import Any
-from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError, PupilData, GazeData
+from .data_structures import PupilData, GazeData, flatten_nested_tuple, PUPIL_CSV_FIELDS, GAZE_CSV_FIELDS
 from .aliases import pupil_datatype, gaze_datatype, ResampledParticipantDataType
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
@@ -33,6 +33,7 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
         for sub_folder in sub_folders:
             export_data_csv(sub_folder, output_path, topics)
     elif filetype == "hdf":
+        assert isinstance(experiment_log, Path) and isinstance(demographics_log, Path)
         metadata = get_metadata(experiment_log, demographics_log)
         # Fix typo in the experiment log's datetime string
         metadata["header"]["date"] = fix_datetime_string(metadata["header"]["date"])
@@ -58,10 +59,14 @@ def export_data_csv(
     for topic in data_topics:
         data_file = folder_path / f"{topic}{DATA_FILE_SUFFIX}"
         export_file = output_path / f"{folder_path.name}_{topic}_positions.csv"
+        if topic == "pupil":
+            csv_fieldnames = PUPIL_CSV_FIELDS
+        else:
+            csv_fieldnames = GAZE_CSV_FIELDS
         with open(export_file, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=get_csv_fieldnames())
+            writer = csv.DictWriter(f, fieldnames=csv_fieldnames)
             # Data processing pipeline using generators
-            data = extract_data(data_file, t_start=world_ts_data[0], method="3d")
+            data = extract_data(data_file, t_start=world_ts_data[0], topic=topic, method="3d")
             timestamped_data = match_timestamps(data, world_ts_data)
             flattened_data = flatten_data(timestamped_data)
             writer.writeheader()
@@ -151,17 +156,18 @@ def match_timestamps(data: Iterator[PupilData | GazeData], ts_data: np.ndarray) 
         yield entry
 
 
-def flatten_data(data: Iterator[dict]) -> Iterator[dict]:
+def flatten_data(data: Iterator[PupilData | GazeData]) -> Iterator[dict[str, Any]]:
     """Turn an iterator of nested dicts into an iterator single-layer dicts"""
     for entry in data:
-        output = {}
-        for key, value in entry.items():
-            try:
-                output.update(make_flat(key, value, pupil_to_csv_fieldmap))
-            except FieldMapKeyError:
-                # Some entries in the pldata file don't map to a CSV field, can ignore
-                pass
-        yield output
+        entry_data = entry.fields_to_tuple_for_csv()
+        entry_data = flatten_nested_tuple(entry_data)
+        match entry:
+            case PupilData():
+                labels = PUPIL_CSV_FIELDS
+            case GazeData():
+                labels = GAZE_CSV_FIELDS
+        labelled_data = dict(zip(labels, entry_data))
+        yield labelled_data
 
 
 def make_flat(key: str, value, fieldmap: dict) -> dict:
