@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 """Functions to export data from Pupil Core recordings"""
 
 import msgpack as mpk

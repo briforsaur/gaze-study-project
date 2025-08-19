@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 import numpy as np
 from typing import Generic, TypeVar
 from matplotlib.axes import Axes

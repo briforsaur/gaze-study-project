@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 from typing import TypeAlias
 import numpy as np
 

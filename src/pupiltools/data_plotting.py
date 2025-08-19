@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes as mpl_axes
 from matplotlib.figure import Figure as mpl_fig, SubFigure as mpl_subfig

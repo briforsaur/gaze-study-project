@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 from argparse import ArgumentParser
 import numpy as np
 import matplotlib.pyplot as plt

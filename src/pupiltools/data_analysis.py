@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 from dataclasses import dataclass
 from numpy import typing as npt
 from numpy.lib import recfunctions as rfn

@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 import argparse
 import h5py
 from numpy.lib.npyio import NpzFile

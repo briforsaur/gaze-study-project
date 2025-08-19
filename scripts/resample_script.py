@@ -1,3 +1,6 @@
+# Copyright 2025 Shane Forbrigger
+# Licensed under the MIT License (see LICENSE file in project root)
+
 import pupiltools.data_import as d_import
 import pupiltools.data_plotting as d_plot
 import pupiltools.data_analysis as da
