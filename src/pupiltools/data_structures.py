@@ -1,6 +1,5 @@
 import numpy as np
-import collections.abc as abc
-from dataclasses import dataclass, fields, astuple, asdict
+from dataclasses import dataclass, fields, astuple
 from typing import Any
 
 from .aliases import pupil_datatype, gaze_datatype
@@ -56,7 +55,7 @@ pupil_to_csv_fieldmap = {
 
 def get_flattened_values(input_dict: dict) -> tuple[str]:
     """Get a tuple of values in a nested dictionary of strings and lists of strings
-    
+
     The purpose of this function is to generate a list of field names from the mapping
     between the names of the keys in the nested dictionaries stored in the pldata files
     and the columns of the CSV file exported by Pupil Player.
@@ -84,7 +83,7 @@ def get_flattened_values(input_dict: dict) -> tuple[str]:
     ...     }
     ... }
     >>> get_flattened_values(nested_dict)
-    ('pupil_timestamp', 'norm_pos_x', 'norm_pos_y', 'ellipse_center_x', 
+    ('pupil_timestamp', 'norm_pos_x', 'norm_pos_y', 'ellipse_center_x',
     'ellipse_center_y', 'ellipse_axis_a', 'ellipse_axis_b', 'ellipse_angle')
     """
     flattened_values = []
@@ -180,42 +179,43 @@ class PupilData:
     projected_sphere: ProjectedSphere
 
     def __init__(
-            self, 
-            timestamp: float,
-            confidence: float,
-            norm_pos: list[float],
-            diameter: float,
-            ellipse: dict[str, list[float] | float],
-            diameter_3d: float,
-            sphere: dict[str, list[float] | float],
-            circle_3d: dict[str, list[float] | float],
-            theta: float,
-            phi: float,
-            projected_sphere: dict[str, list[float] | float],
-            id: int,
-            topic: str,
-            method: str,
-            location: list[float], #type: ignore
-            model_confidence: float,
-            world_index: int = -1) -> None:
+        self,
+        timestamp: float,
+        confidence: float,
+        norm_pos: list[float],
+        diameter: float,
+        ellipse: dict[str, list[float] | float],
+        diameter_3d: float,
+        sphere: dict[str, list[float] | float],
+        circle_3d: dict[str, list[float] | float],
+        theta: float,
+        phi: float,
+        projected_sphere: dict[str, list[float] | float],
+        id: int,
+        topic: str,
+        method: str,
+        location: list[float],  # type: ignore
+        model_confidence: float,
+        world_index: int = -1,
+    ) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
         self.confidence = confidence
         self.norm_pos = Cartesian2D(*norm_pos)
         self.diameter = diameter
-        self.ellipse = Ellipse(**ellipse) #type: ignore
+        self.ellipse = Ellipse(**ellipse)  # type: ignore
         self.diameter_3d = diameter_3d
-        self.sphere = Sphere(**sphere) #type: ignore
-        self.circle_3d = Circle3D(**circle_3d) #type: ignore
+        self.sphere = Sphere(**sphere)  # type: ignore
+        self.circle_3d = Circle3D(**circle_3d)  # type: ignore
         self.theta = theta
         self.phi = phi
-        self.projected_sphere = ProjectedSphere(**projected_sphere) #type: ignore
+        self.projected_sphere = ProjectedSphere(**projected_sphere)  # type: ignore
         self.id = id
         self.topic = topic
         self.method = method
         self.location = location
         self.model_confidence = model_confidence
-    
+
     def fields_to_tuple(self) -> tuple:
         """Create tuple only from fields, not all parameters"""
         data_list = []
@@ -224,10 +224,23 @@ class PupilData:
             match field_value:
                 case float() | int():
                     data_list.append(field_value)
-                case Cartesian2D() | Cartesian3D() | Ellipse() | Sphere() | Circle3D() | ProjectedSphere():
+                case (
+                    Cartesian2D()
+                    | Cartesian3D()
+                    | Ellipse()
+                    | Sphere()
+                    | Circle3D()
+                    | ProjectedSphere()
+                ):
                     data_list.append(astuple(field_value))
         return tuple(data_list)
     
+    def fields_to_tuple_for_csv(self) -> tuple:
+        field_values = list(self.fields_to_tuple())
+        field_values.append(self.id)
+        return tuple(field_values)
+
+
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
         return np.array(data, dtype=pupil_datatype)
@@ -243,18 +256,33 @@ class GazeData:
     gaze_point_3d: Cartesian3D
     eye_centers_3d: list[Cartesian3D]
     gaze_normals_3d: list[Cartesian3D]
-    topic: str
 
-    def __init__(self, timestamp: float, confidence: float, norm_pos: list[float], base_data: list[dict[str, Any]], gaze_point_3d: list[float], topic: str, eye_centers_3d: dict[str, list[float]] = None, gaze_normals_3d: dict[str, list[float]] = None, world_index: int = -1, **kw) -> None:
+    def __init__(
+        self,
+        timestamp: float,
+        confidence: float,
+        norm_pos: list[float],
+        base_data: list[dict[str, Any]],
+        gaze_point_3d: list[float],
+        eye_centers_3d: dict[str, list[float]] | None = None,
+        gaze_normals_3d: dict[str, list[float]] | None = None,
+        topic: str = "",
+        world_index: int = -1,
+        **kw,
+    ) -> None:
         self.timestamp = timestamp
         self.world_index = world_index
         self.confidence = confidence
         self.norm_pos = Cartesian2D(*norm_pos)
         self.base_data = [PupilData(**data) for data in base_data]
         self.gaze_point_3d = Cartesian3D(*gaze_point_3d)
-        if eye_centers_3d is not None:
-            self.eye_centers_3d = [Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()]
-            self.gaze_normals_3d = [Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()]
+        if eye_centers_3d is not None and gaze_normals_3d is not None:
+            self.eye_centers_3d = [
+                Cartesian3D(*eye_center) for eye_center in eye_centers_3d.values()
+            ]
+            self.gaze_normals_3d = [
+                Cartesian3D(*gaze_normal) for gaze_normal in gaze_normals_3d.values()
+            ]
         else:
             # Data for both eyes is not available
             # eye_centers_3d and gaze_normals_3d are not in the data message
@@ -294,42 +322,58 @@ class GazeData:
                     data = [astuple(values) for values in field_value]
                     data_list.append(tuple(data))
         return tuple(data_list)
+    
+    def fields_to_tuple_for_csv(self) -> tuple:
+        return self.fields_to_tuple()
 
     def to_numpy_recarray(self) -> np.ndarray:
         data = self.fields_to_tuple()
         return np.array(data, dtype=gaze_datatype)
     
 
-def get_flattened_fields(obj, obj_tuple) -> tuple[tuple[str, ...], tuple[float | int]]:
-    field_list = fields(obj)
-    name_list = []
-    data_list = []
-    for field, data in zip(field_list, obj_tuple):
-        name = field.name
-        value = getattr(obj, name)
-        match value:
-            case float() | int():
-                name_list.append(name)
-                data_list.append(data)
-            case list() if isinstance(value[0], PupilData):
-                for i in range(2):
-                    name_list.append(f"{name}_{i}_timestamp")
-                    data_list.append(data[i])
-            case list():
-                for (i, item), data_item in zip(enumerate(value), data):
-                    sub_names, sub_data = get_flattened_fields(item, data_item)
-                    names = [f"{name}_{i}_{sub_name}" for sub_name in sub_names]
-                    name_list.extend(names)
-                    data_list.extend(sub_data)
-            case _:
-                sub_names, sub_data = get_flattened_fields(value, data)
-                names = [f"{name}_{sub_name}" for sub_name in sub_names]
-                name_list.extend(names)
-                data_list.extend(sub_data)
-    return name_list, data_list
- 
+def _get_csv_header(class_obj: type) -> list[str]:
+    header_list = []
+    for field in fields(class_obj):
+        f_type = field.type
+        f_name = field.name
+        if f_type == float or f_type == int or f_type == str:
+            header_list.append(f_name)
+        elif f_type == list[PupilData]:
+            field_names = [f"{f_name}_{i}_timestamp" for i in range(2)]
+            header_list.extend(field_names)
+        elif f_type == list[Cartesian3D]:
+            sub_names = _get_csv_header(Cartesian3D)
+            for i in range(2):
+                field_names = [f"{f_name}_{i}_{sub_name}" for sub_name in sub_names]
+                header_list.extend(field_names)
+        else:
+            sub_names = _get_csv_header(f_type) # type: ignore
+            field_names = [f"{f_name}_{sub_name}" for sub_name in sub_names]
+            header_list.extend(field_names)
+    if class_obj == PupilData:
+        header_list.append("eye_id")
+    return header_list
 
-if __name__=='__main__':
+
+PUPIL_CSV_FIELDS = _get_csv_header(PupilData)
+GAZE_CSV_FIELDS = _get_csv_header(GazeData)
+
+
+def flatten_nested_tuple(data: tuple[Any]) -> tuple[Any]:
+    data_list = []
+    for item in data:
+        match item:
+            case float() | int() | str():
+                data_list.append(item)
+            case tuple():
+                sub_items = flatten_nested_tuple(item)
+                data_list.extend(sub_items)
+    return tuple(data_list)
+
+
+if __name__ == "__main__":
+    print(_get_csv_header(PupilData))
+    print(_get_csv_header(GazeData))
     test_p_dict = {
         'id': 0, 
         'topic': 'pupil.0.3d', 
@@ -383,8 +427,4 @@ if __name__=='__main__':
         ]
     }
     test_p_data = PupilData(**test_p_dict)
-    field_list, data_list = get_flattened_fields(test_p_data, test_p_data.fields_to_tuple())
-    print(*zip(field_list, data_list))
     test_g_data = GazeData(**test_g_dict)
-    field_list, data_list = get_flattened_fields(test_g_data, test_g_data.fields_to_tuple())
-    print(*zip(field_list, data_list))

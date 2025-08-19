@@ -3,12 +3,12 @@
 import msgpack as mpk
 import numpy as np
 from pathlib import Path
-from collections.abc import Iterator, Container, Iterable
+from collections.abc import Iterator, Container
 import csv
 import json
 from typing import Any
-from .data_structures import pupil_to_csv_fieldmap, get_csv_fieldnames, FieldMapKeyError, PupilData, GazeData
-from .aliases import pupil_datatype, gaze_datatype, ResampledParticipantDataType
+from .data_structures import PupilData, GazeData, flatten_nested_tuple, PUPIL_CSV_FIELDS, GAZE_CSV_FIELDS
+from .aliases import pupil_datatype, gaze_datatype, ResampledTrialDataType
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
 from os import PathLike
@@ -33,6 +33,7 @@ def export_folder(folder_path: Path, output_path: Path, experiment_log: Path | N
         for sub_folder in sub_folders:
             export_data_csv(sub_folder, output_path, topics)
     elif filetype == "hdf":
+        assert isinstance(experiment_log, Path) and isinstance(demographics_log, Path)
         metadata = get_metadata(experiment_log, demographics_log)
         # Fix typo in the experiment log's datetime string
         metadata["header"]["date"] = fix_datetime_string(metadata["header"]["date"])
@@ -58,10 +59,14 @@ def export_data_csv(
     for topic in data_topics:
         data_file = folder_path / f"{topic}{DATA_FILE_SUFFIX}"
         export_file = output_path / f"{folder_path.name}_{topic}_positions.csv"
+        if topic == "pupil":
+            csv_fieldnames = PUPIL_CSV_FIELDS
+        else:
+            csv_fieldnames = GAZE_CSV_FIELDS
         with open(export_file, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=get_csv_fieldnames())
+            writer = csv.DictWriter(f, fieldnames=csv_fieldnames)
             # Data processing pipeline using generators
-            data = extract_data(data_file, t_start=world_ts_data[0], method="3d")
+            data = extract_data(data_file, t_start=world_ts_data[0], topic=topic, method="3d")
             timestamped_data = match_timestamps(data, world_ts_data)
             flattened_data = flatten_data(timestamped_data)
             writer.writeheader()
@@ -86,7 +91,7 @@ def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Itera
                 for data_entry in timestamped_data:
                     method = data_entry.topic.split(".")[-1]
                     dataset_name = topic
-                    if topic == "pupil":
+                    if isinstance(data_entry, PupilData):
                         dataset_name = dataset_name + f"_eye{data_entry.id}_{method}"
                     if dataset_name not in grouped_data:
                         grouped_data[dataset_name] = []
@@ -100,7 +105,8 @@ def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Itera
                             "method": "pye3d 0.3.0 real-time",
                         })
                         dtype = pupil_datatype
-                    elif name_parts[0] == "gaze":
+                    else:
+                        assert name_parts[0] == "gaze"
                         dtype = gaze_datatype
                     dataset_values = np.array(dataset_values, dtype=dtype)
                     dataset = trial_group.create_dataset(dataset_name, data=dataset_values)
@@ -151,61 +157,18 @@ def match_timestamps(data: Iterator[PupilData | GazeData], ts_data: np.ndarray) 
         yield entry
 
 
-def flatten_data(data: Iterator[dict]) -> Iterator[dict]:
+def flatten_data(data: Iterator[PupilData | GazeData]) -> Iterator[dict[str, Any]]:
     """Turn an iterator of nested dicts into an iterator single-layer dicts"""
     for entry in data:
-        output = {}
-        for key, value in entry.items():
-            try:
-                output.update(make_flat(key, value, pupil_to_csv_fieldmap))
-            except FieldMapKeyError:
-                # Some entries in the pldata file don't map to a CSV field, can ignore
-                pass
-        yield output
-
-
-def make_flat(key: str, value, fieldmap: dict) -> dict:
-    """Turn a nested dict into a single-layer dict"""
-    output = {}
-    try:
-        field_mapping = fieldmap[key]
-    except KeyError:
-        # If there is no corresponding key in the field mapping, raise to inform caller
-        raise FieldMapKeyError
-    # Different flattening behaviour using a Class Pattern match
-    # https://docs.python.org/3/reference/compound_stmts.html#class-patterns
-    # https://stackoverflow.com/a/77966563
-    match field_mapping:
-        case str():
-            output.update({field_mapping: value})
-        case list():
-            output.update(zip(field_mapping, value))
-        case dict():
-            for subfieldkey in iter(field_mapping):
-                # Use recursion to flatten the dict within a dict
-                output.update(make_flat(subfieldkey, value[subfieldkey], field_mapping))
-    return output
-
-
-def nested_dict_to_tuple(nested_dict: dict, datatype: np.dtype = pupil_datatype):
-    data_list = []
-    for field in datatype.names:
-        if not isinstance(nested_dict[field], Container):
-            data_list.append(nested_dict[field])
-        elif isinstance(nested_dict[field], list):
-            data_list.append(tuple(nested_dict[field]))
-        elif isinstance(nested_dict[field], dict):
-            data_list.append(
-                nested_dict_to_tuple(nested_dict[field], datatype.fields[field][0])
-            )
-    return tuple(data_list)
-
-
-def pupildata_to_numpy(pupil_data: list) -> np.ndarray:
-    data = []
-    for data_entry in pupil_data:
-        data.append(nested_dict_to_tuple(data_entry))
-    return np.array(data, dtype=pupil_datatype)
+        entry_data = entry.fields_to_tuple_for_csv()
+        entry_data = flatten_nested_tuple(entry_data)
+        match entry:
+            case PupilData():
+                labels = PUPIL_CSV_FIELDS
+            case GazeData():
+                labels = GAZE_CSV_FIELDS
+        labelled_data = dict(zip(labels, entry_data))
+        yield labelled_data
 
 
 def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
@@ -247,7 +210,7 @@ def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
     return experiment_metadata
 
 
-def export_hdf(file:str | bytes | PathLike, data_structure: ResampledParticipantDataType):
+def export_hdf(file:str | bytes | PathLike, data_structure: dict[str, dict | list]):
     """Export a dictionary of data and attributes to an HDF File
     
     Parameters
