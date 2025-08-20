@@ -14,7 +14,12 @@ release = '1.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
+]
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
 
 templates_path = ['_templates']
 exclude_patterns = []

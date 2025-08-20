@@ -184,26 +184,53 @@ def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
         containing the participant ID and datetime of the experiment, then a list of 
         trial record dictionaries giving the trial number, the task type, which die was
         used, the associated recording number, the start time, the instruction time, and
-        the stop time of the experiment.
-            "header": {
-                "participant_id": "P01",
-                "date": "2024-08-15-T09:58:07"
-            },
-            "trial_record": [
-                {
-                "trial": 0,
-                "task": "observation",
-                "die": "4",
-                "recording": "010",
-                "t_start": 204.30433799998718,
-                "t_instruction": 207.1633179999917,
-                "t_stop": 208.1201849999925
-                }, ...
-            ]
+        the stop time of the experiment. For example::
+
+            {
+                "header": {
+                    "participant_id": "P01",
+                    "date": "2024-08-15-T09:58:07"
+                },
+                "trial_record": [
+                    {
+                        "trial": 0,
+                        "task": "observation",
+                        "die": "4",
+                        "recording": "010",
+                        "t_start": 204.30433799998718,
+                        "t_instruction": 207.1633179999917,
+                        "t_stop": 208.1201849999925
+                    }, 
+                    {
+                        "trial": 1,
+                        "task": "observation",
+                        "die": "2",
+                        "recording": "011",
+                        "t_start": 217.57487699999183,
+                        "t_instruction": 220.36736999999266,
+                        "t_stop": 221.31473499999265
+                    }, ...
+                ]
+            }
+
     demographics_log : pathlib.Path
         Path to the demographics log for all experiments, a .json file with entries
         corresponding to each participant ID. Each entry gives the age group, dominant
-        hand, and gender of the participant.
+        hand, and gender of the participant. For example::
+
+            {
+                "P01":{
+                    "Age Group": "18 to 24",
+                    "Dominant Hand": "Right",
+                    "Gender": "Man"
+                },
+                "P02":{
+                    "Age Group": "45 to 64",
+                    "Dominant Hand": "Left",
+                    "Gender": "Woman"
+                }, ...
+            }
+    
     """
     experiment_metadata: dict[str, dict] = load_json_log(experiment_log)
     participant_id = experiment_metadata["header"]["participant_id"]
