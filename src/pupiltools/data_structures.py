@@ -65,6 +65,50 @@ class ProjectedSphere(Ellipse):
 
 @dataclass(init=False)
 class PupilData:
+    """A class for handling data from PLDATA files
+
+    After unpacking, ``pldata`` files contain lists of messages where each message is
+    a deeply nested set of dictionaries (up to three layers). This format is difficult
+    to work with and prevents IDE tools like tab completion for easy object 
+    introspection. The PupilData class bundles this data into meaningful objects and
+    allows easier conversion to useful datatypes like numpy recarrays.
+
+    PupilData and many of its attributes are dataclasses, so all the Python dataclass
+    functions can be applied to PupilData objects. The fields of the dataclass 
+    correspond to the specific data items extracted by Pupil Player software during
+    csv export, but there are additional attributes that can be accessed as well.
+
+    Attributes
+    ----------
+    timestamp: float
+        The Pupil software time at which these data were recorded in seconds.
+    confidence: float
+        The confidence in the pupil detection. 0 is the minimum confidence, 1 is the 
+        maximum.
+    norm_pos: data_structures.Cartesian2D
+        The position of the center of the pupil in relative coordinates in the eye
+        camera image.
+    diameter: float
+        The diameter of the pupil in the camera image in pixels.
+    ellipse: data_structures.Ellipse
+        The ellipse describing the shape of the pupil in the camera image.
+    diameter_3d: float
+        The estimated pupil diameter in millimetres. The Pupil Capture model assumes
+        the eyeball has a specific diameter in order to estimate the pupil diameter in
+        real units.
+    sphere: data_structures.Sphere
+        The sphere describing the 3D eye model.
+    circle_3d: data_structures.Circle3D
+        The circle in 3D space mapped to the pupil of the 3D eye model.
+    theta: float
+        The polar angle in radians from the center of the 3D eye model to the estimated
+        pupil position.
+    phi: float
+        The azimuthal angle in radians from the center of the 3D eye model to the 
+        estimated pupil position.
+    projected_sphere: data_structures.ProjectedSphere
+        The elliptical shape projected onto the camera image frame by the 3D eye model.
+    """
     timestamp: float
     world_index: int
     confidence: float

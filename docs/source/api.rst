@@ -23,3 +23,11 @@ Data Structures
 
     data_structures.PupilData
     data_structures.GazeData
+    data_structures.Cartesian2D
+    data_structures.Cartesian3D
+    data_structures.Axes
+    data_structures.Ellipse
+    data_structures.Sphere
+    data_structures.Circle3D
+    data_structures.ProjectedSphere
+    data_structures.flatten_nested_tuple
