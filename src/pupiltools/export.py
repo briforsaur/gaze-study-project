@@ -6,12 +6,12 @@
 import msgpack as mpk
 import numpy as np
 from pathlib import Path
-from collections.abc import Iterator, Container
+from collections.abc import Iterator
 import csv
 import json
 from typing import Any
 from .data_structures import PupilData, GazeData, flatten_nested_tuple, PUPIL_CSV_FIELDS, GAZE_CSV_FIELDS
-from .aliases import pupil_datatype, gaze_datatype, ResampledTrialDataType
+from .aliases import pupil_datatype, gaze_datatype
 from .utilities import fix_datetime_string, make_digit_str
 import h5py
 from os import PathLike
@@ -365,19 +365,6 @@ def export_hdf(file:str | bytes | PathLike, data_structure: dict[str, dict | lis
             trial_group = trials_group.create_group(make_digit_str(i))
             trial_group.attrs.update(trial["attributes"])
             trial_group.create_dataset("pupil_3d", data=trial["data"])
-
-
-def recurse_write_hdf(group: h5py.Group, data_structure):
-    attrs_key = "attributes"
-    if isinstance(data_structure, dict):
-        for key, item in data_structure.items():
-            if key == attrs_key:
-                group.attrs.update(item)
-            elif isinstance(item, np.ndarray):
-                group.create_dataset(key, data=item)
-            elif isinstance(item, Iterator):
-                subgroup = group.create_group(key)
-                recurse_write_hdf(subgroup, item)
 
 
 def load_json_log(log_file_path: Path) -> dict:
