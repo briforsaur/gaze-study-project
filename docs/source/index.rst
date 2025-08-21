@@ -9,10 +9,9 @@ PupilTools documentation
 **PupilTools** is a Python package for exporting and analyzing data from the
 *Pupil Labs* `Pupil Core <https://pupil-labs.com/products/core>`_ eye tracking headset.
 
-.. autofunction:: pupiltools.export.get_metadata
-
-
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   api
 
