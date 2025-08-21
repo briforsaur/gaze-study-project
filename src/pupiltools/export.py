@@ -285,7 +285,7 @@ def flatten_data(data: Iterator[PupilData | GazeData]) -> Iterator[dict[str, Any
         yield labelled_data
 
 
-def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
+def get_metadata(experiment_log: Path, demographics_log: Path) -> dict[str, Any]:
     """Get experiment and participant metadata from log files
     
     Parameters
@@ -342,6 +342,44 @@ def get_metadata(experiment_log: Path, demographics_log: Path) -> dict:
                 }, ...
             }
     
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary of metadata combined from the experiment log and demographics log.
+        The dictionary has the same form as the experiment log, but the demographics
+        for that participant are appended to the ``"header"`` dictionary.
+
+        For example, for Participant P01::
+
+            {
+                "header": {
+                    "participant_id": "P01",
+                    "date": "2024-08-15-T09:58:07"
+                    "Age Group": "18 to 24",
+                    "Dominant Hand": "Right",
+                    "Gender": "Man"
+                },
+                "trial_record": [
+                    {
+                        "trial": 0,
+                        "task": "observation",
+                        "die": "4",
+                        "recording": "010",
+                        "t_start": 204.30433799998718,
+                        "t_instruction": 207.1633179999917,
+                        "t_stop": 208.1201849999925
+                    }, 
+                    {
+                        "trial": 1,
+                        "task": "observation",
+                        "die": "2",
+                        "recording": "011",
+                        "t_start": 217.57487699999183,
+                        "t_instruction": 220.36736999999266,
+                        "t_stop": 221.31473499999265
+                    }, ...
+                ]
+            }
     """
     experiment_metadata: dict[str, dict] = load_json_log(experiment_log)
     participant_id = experiment_metadata["header"]["participant_id"]
