@@ -21,7 +21,8 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 docs = [
-    "sphinx",
+    "sphinx == 8.2.3",
+    "pydata-sphinx-theme",
 ]
 
 [tool.setuptools_scm]
