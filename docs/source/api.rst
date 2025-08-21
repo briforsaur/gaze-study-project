@@ -15,3 +15,11 @@ Exporting data
     export.extract_data
     export.get_metadata
     export.get_subfolders_from_log
+
+Data Structures
+---------------
+.. autosummary::
+    :toctree: generated/
+
+    data_structures.PupilData
+    data_structures.GazeData

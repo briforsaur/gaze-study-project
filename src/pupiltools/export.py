@@ -198,7 +198,39 @@ def export_hdf_from_raw(folder_path: Path, output_path: Path, sub_folders: Itera
 def extract_data(
     data_file: Path, t_start: float, topic: str, method: str = "3d"
 ) -> Iterator[PupilData | GazeData]:
-    """Extract Pupil data from pldata (msgpack) format"""
+    """Extract Pupil data from pldata (msgpack) format
+    
+    Unpacks data from a pupil or gaze msgpack message and returns it as a python object
+    that is more easily manipulated and introspected.
+
+    Parameters
+    ----------
+    data_file: pathlib.Path
+        The msgpack file to be unpacked. Pupil Capture stores msgpack messages in
+        ``.pldata`` files.
+    t_start: float
+        The time from which to start the data extraction. Each message is timestamped,
+        and for data synchonization purposes you may only want data points from after
+        a certain point in time. The Pupil Capture software counts time in seconds 
+        since the software clock was last reset, therefore messages in a given file do
+        not necessarily start at 0 seconds but are guaranteed to have a timestamp
+        greater than or equal to 0.
+    topic: {"pupil", "gaze"}
+        The topic filter for the messages to be extracted. pldata files contain messages
+        in various topics, each with their own data structure. Only ``"pupil"`` and
+        ``"gaze"`` topics are supported.
+    method: str, default="3d"
+        The method filter for the messages to be extracted. Only applies when ``topic = 
+        "pupil"``. Pupil measurements are performed with either a 2d or 3d method.
+    
+    Returns
+    -------
+    Iterator[PupilData | GazeData]
+        An iterator of selected messages from the msgpack file, where all items are 
+        either :py:class:`pupiltools.data_structures.PupilData` objects or 
+        :py:class:`pupiltools.data_structures.GazeData` objects, depending on the choice
+        of ``topic``.
+    """
     with open(data_file, "rb") as f:
         unpacker = mpk.Unpacker(f, use_list=False)
         msg_topic: str
