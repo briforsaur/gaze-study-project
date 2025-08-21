@@ -250,35 +250,34 @@ def export_hdf(file:str | bytes | PathLike, data_structure: dict[str, dict | lis
         open() or similar functions.
     data_structure: dict[str, dict | list]
         A dictionary containing data and attributes of the data. It is expected to have
-        the following structure:
+        the following structure::
 
-        {
-            "attributes":
-                {
-                    "attr1": val1,
-                    etc
-                },
-            "data":
-                [
+            {
+                "attributes":
                     {
-                        "attributes":
-                        {
-                            "attr1": val1,
-                            etc
-                        },
-                        "data": np.ndarray
+                        "attr1": val1,
+                        etc
                     },
-                    {
-                        "attributes":
+                "data":
+                    [
                         {
-                            "attr1": val1,
-                            etc
+                            "attributes":
+                            {
+                                "attr1": val1,
+                                etc
+                            },
+                            "data": np.ndarray
                         },
-                        "data": np.ndarray
-                    },
-                    etc
-                ]
-        }
+                        {
+                            "attributes":
+                            {
+                                "attr1": val1,
+                                etc
+                            },
+                            "data": np.ndarray
+                        }, ...
+                    ]
+            }
     """
     with h5py.File(file, 'w') as f_root:
         f_root.attrs.update(data_structure["attributes"])
