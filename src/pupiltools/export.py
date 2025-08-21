@@ -57,7 +57,25 @@ def get_subfolders_from_log(folder_path: Path, experiment_log: Path) -> Iterator
 def export_data_csv(
     folder_path: Path, output_path: Path, data_topics: tuple[str, ...]
 ):
-    """Export raw Pupil pldata and npy files to CSV"""
+    """Export raw Pupil and/or Gaze pldata and npy files to CSV
+
+    Depending on the topics supplied to the function, it will output one or two files
+    containing the pupil and/or gaze data.
+    
+    Parameters
+    ----------
+    folder_path: pathlib.Path
+        Path to a single Pupil Capture recording folder containing pldata and npy files.
+    output_path: pathlib.Path
+        Path to a folder to place the output CSV file(s). The CSV files will be named
+        based on their topic and the last folder in ``folder_path``. For example, if
+        ``folder_path = C:/Users/user/recordings/P01/004/`` and ``topic = ("pupil", 
+        "gaze")``, then the output files will be ``004_pupil_positions.csv`` and
+        ``004_gaze_positions.csv``.
+    data_topics: tuple[str, ...]
+        A tuple, or any iterable, of strings describing the topics to be exported as
+        CSV files. Currently the only options are "pupil", "gaze", or both.
+    """
     world_ts_data = np.load(folder_path / ("world" + TS_FILE_SUFFIX))
     for topic in data_topics:
         data_file = folder_path / f"{topic}{DATA_FILE_SUFFIX}"
