@@ -79,6 +79,32 @@ def export_folder(folder_path: Path, output_path: Path, filetype: str = "csv", e
 
 
 def get_subfolders_from_log(folder_path: Path, experiment_log: Path) -> Iterator[Path]:
+    """Get an iterator of all subfolders referenced in an experiment log
+
+    Parameters
+    ----------
+    folder_path: pathlib.Path
+        The folder containing all subfolders of interest.
+    experiment_log: pathlib.Path
+        Path to the experiment log file, a .json file with a ``"trial_record"`` item:
+        a list of trial record dictionaries each containing a ``"recording"`` entry that
+        specifies the subfolder name with the recording corresponding to the trial.
+
+        See :py:func:`pupiltools.export.get_metadata` for an example of a full
+        experiment log file.
+    
+    Returns
+    -------
+    Iterator[pathlib.Path]
+        An iterator of Path objects that point to each folder given in the experiment log
+        file.
+
+    Raises
+    ------
+    FolderNotFoundError
+        If one of the subfolders in the log does not exist on the filesystem, with a 
+        message describing which folder could not be found.
+    """
     with open(experiment_log) as f:
         log_data = json.load(f)
     for item in log_data["trial_record"]:
