@@ -67,7 +67,7 @@ class ProjectedSphere(Ellipse):
 class PupilData:
     """A class for handling data from PLDATA files
 
-    After unpacking, ``pldata`` files contain lists of messages where each message is
+    After unpacking, PLDATA files contain lists of messages where each message is
     a deeply nested set of dictionaries (up to three layers). This format is difficult
     to work with and prevents IDE tools like tab completion for easy object 
     introspection. The PupilData class bundles this data into meaningful objects and
@@ -81,25 +81,28 @@ class PupilData:
     Attributes
     ----------
     timestamp: float
-        The Pupil software time at which these data were recorded in seconds.
+        The Pupil software time at which the source image frame was captured in seconds.
     confidence: float
         The confidence in the pupil detection. 0 is the minimum confidence, 1 is the 
         maximum.
     norm_pos: data_structures.Cartesian2D
-        The position of the center of the pupil in relative coordinates in the eye
+        The position of the center of the pupil in normalized coordinates in the eye
         camera image.
     diameter: float
-        The diameter of the pupil in the camera image in pixels.
+        The diameter of the pupil in the camera image in pixels, not corrected for
+        perspective.
     ellipse: data_structures.Ellipse
-        The ellipse describing the shape of the pupil in the camera image.
+        The ellipse describing the shape of the pupil in the camera image. All members
+        are given in camera image pixels for distances and degrees for angles.
     diameter_3d: float
         The estimated pupil diameter in millimetres. The Pupil Capture model assumes
         the eyeball has a specific diameter in order to estimate the pupil diameter in
         real units.
     sphere: data_structures.Sphere
-        The sphere describing the 3D eye model.
+        The sphere describing the 3D eye model. All units are in millimetres.
     circle_3d: data_structures.Circle3D
-        The circle in 3D space mapped to the pupil of the 3D eye model.
+        The circle in 3D space mapped to the pupil of the 3D eye model. All units are
+        in millimetres.
     theta: float
         The polar angle in radians from the center of the 3D eye model to the estimated
         pupil position.
@@ -108,6 +111,41 @@ class PupilData:
         estimated pupil position.
     projected_sphere: data_structures.ProjectedSphere
         The elliptical shape projected onto the camera image frame by the 3D eye model.
+        All members are given in camera image pixels for distances and degrees for 
+        angles.
+    id: {0, 1}
+        The eye ID, 0 for the participant's right eye, 1 for the left.
+    topic: str
+        The message topic associated with the data. The topic structure differs
+        between main topics, but the general structure is 
+        "[main topic].[subtopic].[subtopic]". For example: pupil.0.3d refers to a pupil
+        data message for eye 0 using the 3d model method.
+    method: str
+        Describes which detector was used to detect the pupil.
+    location: list[float]
+        Latitude and longitude where data was captured, probably determined by IP
+        address.
+    model_confidence: float
+        The confidence in the current eye model (between 0 and 1).
+    world_index: int, optional
+        The index of the closest world (front-facing) video frame.
+
+    Examples
+    --------
+    The class initialization function is designed to take 3D pupil message data unpacked
+    from a PLDATA file and use Python dictionary unpacking to fill in the parameters.
+
+    >>> import msgpack
+    >>> with open("./pupil.pldata", "rb") as f:
+    >>>     unpacker = msgpack.Unpacker(f, use_list=False)
+    >>>     for msg_topic, b_obj in unpacker:
+    >>>         data = mpk.unpackb(b_obj)
+    >>>         subtopics = msg_topic.split(".")
+    >>>         main_topic = subtopics[0]
+    >>>         method = subtopics[2]
+    >>>         if main_topic == "pupil" and method == "3d":
+    >>>             data = PupilData(**data)
+    >>>             print(data)
     """
     timestamp: float
     world_index: int
