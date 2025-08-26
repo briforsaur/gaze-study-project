@@ -199,7 +199,63 @@ class PupilData:
         self.model_confidence = model_confidence
 
     def fields_to_tuple(self) -> tuple:
-        """Create tuple only from fields, not all parameters"""
+        """Create tuple only from fields, not all parameters/properties
+        
+        Create a nested tuple from all fields (note: not all members/object 
+        properties!). Fields are a special feature of dataclasses, and in this case are 
+        used to distinguish the "important" data from other information like metadata. 
+        
+        Any fields that are themselves dataclasses (e.g. Sphere, Ellipse) are also 
+        converted to tuples, resulting in the nested tuple structure. The order of the
+        fields in the tuple matches their definition order in the class. See 
+        PupilData.to_numpy_recarray.
+
+        Examples
+        --------
+        Example with the output expanded for better readability.
+
+        >>> import msgpack
+        >>> with open("./pupil.pldata", "rb") as f:
+        >>>     unpacker = msgpack.Unpacker(f, use_list=False)
+        >>>     for msg_topic, b_obj in unpacker:
+        >>>         data = mpk.unpackb(b_obj)
+        >>>         subtopics = msg_topic.split(".")
+        >>>         main_topic = subtopics[0]
+        >>>         method = subtopics[2]
+        >>>         if main_topic == "pupil" and method == "3d":
+        >>>             data = PupilData(**data)
+        >>>             print(data.fields_to_tuple())
+        >>>             break
+            (
+                345.96117200001027,
+                -1,
+                1.0,
+                (0.24351970741892207, 0.44267443593140643),
+                27.32890140708419,
+                (
+                    (46.75578382443304, 107.00650830116997), 
+                    (21.31778407928547, 27.32890140708419), 
+                    148.42380933109075
+                ), 
+                2.577837659311591,
+                (
+                    (0.26086557200170474, -2.328750597080022, 39.13150616664784), 
+                    10.392304845413264
+                ), 
+                (
+                    (-4.80148189549971, 1.1571421916810967, 30.751697721131602), 
+                    (-0.48712461218222697, 0.3354301899929012, -0.806347443629383), 
+                    1.2889188296557954
+                ), 
+                1.228734488061224,
+                -2.1142342768113487,
+                (
+                    (97.74302257519636, 79.10477264712452), 
+                    (180.19507618312036, 180.19507618312036), 
+                    0.0
+                )
+            )
+        """
         data_list = []
         for field in fields(self):
             field_value = getattr(self, field.name)
@@ -218,12 +274,21 @@ class PupilData:
         return tuple(data_list)
     
     def fields_to_tuple_for_csv(self) -> tuple:
+        """Create tuple from fields, including the eye ID for CSV export
+
+        CSV export lacks metadata and bundles data for both eyes in the same file, 
+        therefore the eye ID needs to be included in the data columns.
+        """
         field_values = list(self.fields_to_tuple())
         field_values.append(self.id)
         return tuple(field_values)
 
 
     def to_numpy_recarray(self) -> np.ndarray:
+        """Create a numpy recarray from fields
+
+        The datatype of the resulting array is the pupiltools.aliases.pupil_datatype.
+        """
         data = self.fields_to_tuple()
         return np.array(data, dtype=pupil_datatype)
 
@@ -409,4 +474,5 @@ if __name__ == "__main__":
         ]
     }
     test_p_data = PupilData(**test_p_dict)
+    print(test_p_data.fields_to_tuple())
     test_g_data = GazeData(**test_g_dict)
