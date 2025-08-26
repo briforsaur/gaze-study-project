@@ -65,7 +65,7 @@ class ProjectedSphere(Ellipse):
 
 @dataclass(init=False)
 class PupilData:
-    """A class for handling data from PLDATA files
+    """A class for handling pupil data from PLDATA files
 
     After unpacking, PLDATA files contain lists of messages where each message is
     a deeply nested set of dictionaries (up to three layers). This format is difficult
@@ -295,6 +295,60 @@ class PupilData:
 
 @dataclass(init=False)
 class GazeData:
+    """A class for handling gaze data from PLDATA files
+
+    After unpacking, PLDATA files contain lists of messages where each message is
+    a deeply nested set of dictionaries. This format is difficult to work with and
+    prevents IDE tools like tab completion for easy object introspection. The GazeData
+    class bundles this data into meaningful objects and allows easier conversion to
+    useful datatypes like numpy recarrays.
+
+    GazeData and many of its attributes are dataclasses, so all the Python dataclass
+    functions can be applied to GazeData objects. The fields of the dataclass 
+    correspond to the specific data items extracted by Pupil Player software during
+    csv export, but there are additional attributes that can be accessed as well.
+
+    Attributes
+    ----------
+    timestamp: float
+        The Pupil software time at which the source image frame was captured in seconds.
+    world_index: int, optional
+        The index of the closest world (front-facing) video frame.
+    confidence: float
+        The confidence in the pupil detection. 0 is the minimum confidence, 1 is the 
+        maximum.
+    norm_pos: data_structures.Cartesian2D
+        The gaze position in normalized coordinates in the front camera image.
+    base_data: list[data_structures.PupilData]
+        The eye data used to estimate the gaze position. Normally a list of length 2, 
+        but when one pupil is not reliably detected only a single PupilData object is
+        available.
+    gaze_point_3d: data_structures.Cartesian3D
+        The estimated gaze position in the 3D world (front) camera coordinate system.
+    eye_centers_3d: list[data_structures.Cartesian3D]
+        The estimated 3D position of each eye in the 3D world (front) camera coordinate
+        system. In the event that one of the eyes was not detected properly, its
+        coordinates are replaced with numpy NaNs.
+    gaze_normals_3d: list[data_structures.Cartesian3D]
+        The estimated 3D gaze vector from each eye in the 3D world (front) camera
+        coordinate system. In the event that one of the eyes was not detected properly,
+        its coordinates are replaced with numpy NaNs.
+    Examples
+    --------
+    The class initialization function is designed to take 3D gaze message data unpacked
+    from a PLDATA file and use Python dictionary unpacking to fill in the parameters.
+
+    >>> import msgpack
+    >>> with open("./gaze.pldata", "rb") as f:
+    >>>     unpacker = msgpack.Unpacker(f, use_list=False)
+    >>>     for msg_topic, b_obj in unpacker:
+    >>>         data = mpk.unpackb(b_obj)
+    >>>         subtopics = msg_topic.split(".")
+    >>>         main_topic = subtopics[0]
+    >>>         if main_topic == "gaze":
+    >>>             data = GazeData(**data)
+    >>>             print(data)
+    """
     timestamp: float
     world_index: int
     confidence: float
