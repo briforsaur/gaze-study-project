@@ -3,6 +3,16 @@ PupilTools API
 
 .. currentmodule:: pupiltools
 
+Constants
+---------
+.. currentmodule:: pupiltools.constants
+.. autosummary::
+    
+    PARTICIPANTS
+    TASK_TYPES
+    TS_FILE_SUFFIX
+    DATA_FILE_SUFFIX
+
 Exporting data
 --------------
 .. currentmodule:: pupiltools.export
