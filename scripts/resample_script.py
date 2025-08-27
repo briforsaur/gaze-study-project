@@ -28,13 +28,22 @@ def get_args():
         "--show_plot", action="store_true", help="Show result in interactive window"
     )
     parser.add_argument(
-        "--resampled_data_path", type=Path, default=None,
-        help="Folder to save the resampled data. If not provided, data is not saved."
+        "--resampled_data_path",
+        type=Path,
+        default=None,
+        help="Folder to save the resampled data. If not provided, data is not saved.",
     )
     return parser.parse_args()
 
 
-def main(participant_id: str, data_path: Path, T_resample: float, fig_path: Path | None = None, show_plot: bool = True, resampled_data_path: Path | None = None):
+def main(
+    participant_id: str,
+    data_path: Path,
+    T_resample: float,
+    fig_path: Path | None = None,
+    show_plot: bool = True,
+    resampled_data_path: Path | None = None,
+):
     variables = "all"
     eyes = (0, 1)
     file_path = data_path / f"{participant_id}.hdf5"
@@ -45,14 +54,14 @@ def main(participant_id: str, data_path: Path, T_resample: float, fig_path: Path
     resampled_data = da.resample_data(participant_data, T_resample)
     resample_fig = d_plot.resample_comparison(
         participant_data[0]["data"][0],
-        resampled_data[0]["data"][:,0],
+        resampled_data[0]["data"][:, 0],
         "diameter_3d",
-        "Diameter [mm]"
+        "Diameter [mm]",
     )
     if resampled_data_path is not None:
         complete_data_structure = {
             "attributes": participant_metadata,
-            "data": resampled_data
+            "data": resampled_data,
         }
         if not resampled_data_path.exists():
             resampled_data_path.mkdir()
