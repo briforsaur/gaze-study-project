@@ -5,31 +5,56 @@ PupilTools API
 
 Exporting data
 --------------
+.. currentmodule:: pupiltools.export
 .. autosummary::
     :toctree: generated/
 
-    export.export_data_csv
-    export.export_folder
-    export.export_hdf
-    export.export_hdf_from_raw
-    export.extract_data
-    export.get_metadata
-    export.get_subfolders_from_log
+    export_data_csv
+    export_folder
+    export_hdf
+    export_hdf_from_raw
+    extract_data
+    get_metadata
+    get_subfolders_from_log
 
 Data Structures
 ---------------
+.. currentmodule:: pupiltools.data_structures
 .. autosummary::
     :toctree: generated/
 
-    data_structures.PupilData
-    data_structures.GazeData
-    data_structures.Cartesian2D
-    data_structures.Cartesian3D
-    data_structures.Axes
-    data_structures.Ellipse
-    data_structures.Sphere
-    data_structures.Circle3D
-    data_structures.ProjectedSphere
-    data_structures.flatten_nested_tuple
-    data_structures.PUPIL_CSV_FIELDS
-    data_structures.GAZE_CSV_FIELDS
+    PupilData
+    GazeData
+    Cartesian2D
+    Cartesian3D
+    Axes
+    Ellipse
+    Sphere
+    Circle3D
+    ProjectedSphere
+    flatten_nested_tuple
+    PUPIL_CSV_FIELDS
+    GAZE_CSV_FIELDS
+
+Type Aliases
+------------
+.. currentmodule:: pupiltools.aliases
+.. autosummary::
+    :toctree: generated/
+
+    AttributesType
+    TrialDataType
+    RawParticipantDataType
+    ResampledTrialDataType
+    ResampledParticipantDataType
+    planar_position_dt
+    position_dt
+    axes_dt
+    ellipse_dt
+    sphere_dt
+    circle_3d_dt
+    projected_sphere_dt
+    eyes_base_dt
+    eye_coords_dt
+    pupil_datatype
+    gaze_datatype
