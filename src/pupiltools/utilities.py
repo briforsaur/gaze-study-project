@@ -7,6 +7,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure as mpl_fig
 from datetime import date, datetime
 from pathlib import Path
+from collections.abc import Iterable
 
 
 def fix_datetime_string(dt_str: str) -> str:
@@ -37,7 +38,7 @@ def make_digit_str(num: int, width: int = 3) -> str:
     return "{:0={width}}".format(num, width=width)
 
 
-def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | list[str], verbose = False):
+def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | Iterable[str], verbose = False):
     """Save a matplotlib figure
 
     Saves a matplotlib figure in a single or multiple formats. Automatically prepends
