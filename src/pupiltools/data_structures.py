@@ -402,6 +402,52 @@ class GazeData:
             self.world_index = world_index
 
     def fields_to_tuple(self) -> tuple:
+        """Create tuple only from fields, not all parameters/properties
+        
+        Create a nested tuple from all fields (note: not all members/object 
+        properties!). Fields are a special feature of dataclasses, and in this case are 
+        used to distinguish the "important" data from other information like metadata. 
+        
+        Any fields that are themselves dataclasses (e.g. norm_pos) are also 
+        converted to tuples, resulting in the nested tuple structure. The order of the
+        fields in the tuple matches their definition order in the class.
+
+        The base_data field is reduced to only the timestamp of the pupil data rather
+        than the full data structure to match the behaviour of the CSV export from
+        Pupil Labs' Pupil Player.
+
+        Examples
+        --------
+        Example with the output expanded for better readability.
+
+        >>> import msgpack
+        >>> with open("./gaze.pldata", "rb") as f:
+        >>>     unpacker = msgpack.Unpacker(f, use_list=False)
+        >>>     for msg_topic, b_obj in unpacker:
+        >>>         data = mpk.unpackb(b_obj)
+        >>>         subtopics = msg_topic.split(".")
+        >>>         main_topic = subtopics[0]
+        >>>         if main_topic == "gaze":
+        >>>             data = GazeData(**data)
+        >>>             print(data.fields_to_tuple())
+        >>>             break
+            (
+                345.9355710000091, 
+                -1, 
+                1.0, 
+                (0.46460641707690487, 0.8831982210630259), 
+                (345.9354560000065, 345.93568600001163),
+                (-14.411410769452052, -117.89830813333006, 275.84140173241457),
+                (
+                    (19.98571631324934, 14.985869912781883, -19.92116119749855), 
+                    (-40.022254973480145, 15.001520605051482, -19.949131602653416)
+                ),
+                (
+                    (-0.10548705527122566, -0.39875290894360527, 0.9109712392711519),
+                    (0.07872946880333444, -0.41731550273288076, 0.9053449298034135)
+                )
+            )
+        """
         data_list = []
         for field in fields(self):
             field_value = getattr(self, field.name)
@@ -425,9 +471,14 @@ class GazeData:
         return tuple(data_list)
     
     def fields_to_tuple_for_csv(self) -> tuple:
+        """Alias of GazeData.fields_to_tuple"""
         return self.fields_to_tuple()
 
     def to_numpy_recarray(self) -> np.ndarray:
+        """Create a numpy recarray from fields
+
+        The datatype of the resulting array is the pupiltools.aliases.gaze_datatype.
+        """
         data = self.fields_to_tuple()
         return np.array(data, dtype=gaze_datatype)
     
@@ -457,10 +508,35 @@ def _get_csv_header(class_obj: type) -> list[str]:
 
 
 PUPIL_CSV_FIELDS = _get_csv_header(PupilData)
+"""List of strings naming each column for CSV export of pupil data"""
+
 GAZE_CSV_FIELDS = _get_csv_header(GazeData)
+"""List of strings naming each column for CSV export of gaze data"""
 
 
 def flatten_nested_tuple(data: tuple[Any]) -> tuple[Any]:
+    """Convert a nested tuple to a flat tuple with the same order of elements
+    
+    Recursively unpacks tuples of tuples to produce a single tuple with only basic
+    elements (e.g ints, floats, strings).
+
+    Parameters
+    ----------
+    data: tuple[Any]
+        A tuple with tuple elements.
+    
+    Returns
+    -------
+    tuple[Any]
+        A "flat" tuple with all nested tuples unpacked.
+    
+    Examples
+    --------
+    >>> data = (35, (3.6, "hello"), -5.3, (23, (5.6, 2.4)))
+    >>> flat_data = flatten_nested_tuple(data)
+    >>> print(flat_data)
+        (35, 3.6, "hello", -5.3, 23, 5.6, 2.4)
+    """
     data_list = []
     for item in data:
         match item:
@@ -530,3 +606,4 @@ if __name__ == "__main__":
     test_p_data = PupilData(**test_p_dict)
     print(test_p_data.fields_to_tuple())
     test_g_data = GazeData(**test_g_dict)
+    print(test_g_data.fields_to_tuple())

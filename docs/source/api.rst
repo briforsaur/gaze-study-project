@@ -31,3 +31,5 @@ Data Structures
     data_structures.Circle3D
     data_structures.ProjectedSphere
     data_structures.flatten_nested_tuple
+    data_structures.PUPIL_CSV_FIELDS
+    data_structures.GAZE_CSV_FIELDS
