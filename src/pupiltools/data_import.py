@@ -19,16 +19,17 @@ class GazeDataFile:
     This class serves as a user interface for getting data and attributes from an HDF5
     file with a specific structure.
 
-    Expects an HDF5 file in the following structure:
-
-            root/
-            |-- trials/
-            |   |-- 000/
-            |   |   |-- pupil_eye0_3d
-            |   |   |-- pupil_eye1_3d
-            |   |-- 001/
-            |   |   |-- pupil_eye0_3d
-            |   |   |-- pupil_eye1_3d
+    Expects an HDF5 file in the following structure::
+        
+        root/
+        |-- trials/
+        |   |-- 000/
+        |   |   |-- pupil_eye0_3d
+        |   |   |-- pupil_eye1_3d
+        |   |-- 001/
+        |   |   |-- pupil_eye0_3d
+        |   |   |-- pupil_eye1_3d
+    
     """
 
     def __init__(self, file: str | bytes | os.PathLike, mode: str = 'r'):
@@ -41,11 +42,16 @@ class GazeDataFile:
         mode: str
             File opening mode. Only supports modes supported by h5py's File object:
 
-            r   Readonly, file must exist (default)
-            r+  Read/write, file must exist
-            w   Create file, truncate if exists
-            w-  or x Create file, fail if exists
-            a   Read/write if exists, create otherwise
+            ``'r'``
+                Readonly, file must exist (default)
+            ``'r+'``
+                Read/write, file must exist
+            ``'w'``
+                Create file, truncate if exists
+            ``'w-'`` or ``'x'``
+                Create file, fail if exists
+            ``'a'``
+                Read/write if exists, create otherwise
         """
         self.file = file
         self.hdf_root = h5py.File(file, mode=mode)
