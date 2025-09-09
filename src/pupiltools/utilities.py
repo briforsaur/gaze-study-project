@@ -15,10 +15,14 @@ def fix_datetime_string(dt_str: str) -> str:
     
     The datetime strings recorded in the experiment had a typo in the separator between
     the date and the time such that they do not match ISO format.
-    Correct ISO format: YYYY-MM-DDTHH:MM:SS
-    Typo:               YYYY-MM-DD-THH:MM:SS
 
     This function fixes the typo and returns a properly formatted ISO datetime string.
+
+    Example:
+
+    >>> fix_datetime_string("2024-09-10-T12:38:24")
+    '2024-09-10T12:38:24'
+
     """
     dt_str_parts = dt_str.split("-")
     return "-".join(dt_str_parts[0:-1]) + dt_str_parts[-1]
@@ -27,13 +31,15 @@ def fix_datetime_string(dt_str: str) -> str:
 def make_digit_str(num: int, width: int = 3) -> str:
     """Convert an integer to a fixed-width string padded with zeros
 
-    Examples: 
+    Examples:
+
     >>> make_digit_str(1)
     '001'
     >>> make_digit_str(1, 4)
     '0001'
     >>> make_digit_str(12, 4)
     '0012'
+
     """
     return "{:0={width}}".format(num, width=width)
 
@@ -42,7 +48,8 @@ def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | Itera
     """Save a matplotlib figure
 
     Saves a matplotlib figure in a single or multiple formats. Automatically prepends
-    the date to the filename, i.e. the output file is f"YYYY-MM-DD_{figname}.{format}".
+    the date to the filename, i.e. the output file is 
+    ``f"YYYY-MM-DD_{figname}.{format}"``.
     
     Parameters
     ----------
@@ -55,7 +62,9 @@ def save_figure(fig: mpl_fig, fig_path: Path, figname: str, formats: str | Itera
     formats: str | list[str]
         Desired file format to use. Can be a single string like "png" or an iterable of
         strings like ("png", "svg"). The strings must be a format supported by 
-        matplotlib's savefig() method.
+        matplotlib's ``savefig`` method.
+    verbose: bool, default = False
+        Print the full path of each saved figure.
     """
     datestr = date.today().isoformat()
     if isinstance(formats, str):
@@ -72,14 +81,15 @@ def get_datetime() -> str:
     
     Returns
     -------
-    The current date and time up to the second in YYYY-MM-DDTHH_mm_ss format. This is
-    almost the same as ISO 8601 date and time format, but the colons (":") in the time
-    part have been replaced with underscores so the string can be used in a filename.
+    str
+        The current date and time up to the second in YYYY-MM-DDTHH_mm_ss format. This is
+        almost the same as ISO 8601 date and time format, but the colons (":") in the time
+        part have been replaced with underscores so the string can be used in a filename.
 
     Examples
     --------
     If the date is September 21, 2024 and the time is 2:13:23 pm, the output would be:
-    2024-09-21T_14_13_23
+    ``'2024-09-21T14_13_23'``
     """
     return datetime.now().strftime(r"%Y-%m-%dT%H_%M_%S")
 

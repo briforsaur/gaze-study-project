@@ -10,3 +10,4 @@ PupilTools API
     Exporting Data <api_sections/export.rst>
     Data Structures <api_sections/data_structures.rst>
     Type Aliases <api_sections/aliases.rst>
+    api_sections/utilities.rst
