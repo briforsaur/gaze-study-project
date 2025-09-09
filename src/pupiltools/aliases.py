@@ -9,6 +9,7 @@ AttributesType: TypeAlias = dict[str, str | np.float64 | np.int64]
 
 Each trial has a set of metadata contained in the HDF attributes. This type alias
 represents a dictionary holding that metadata. For example::
+
     {
         "die": 4,
         "recording": '003',
