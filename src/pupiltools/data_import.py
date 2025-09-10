@@ -29,6 +29,24 @@ class GazeDataFile:
         |   |-- 001/
         |   |   |-- pupil_eye0_3d
         |   |   |-- pupil_eye1_3d
+
+    Can be used with a context manager (``with`` statement) to automatically
+    close the file when no longer needed or when an exception occurs.
+
+    Examples
+    --------
+
+    Opening a file with a context manager::
+
+        with GazeDataFile("P01.hdf", mode="r") as datafile:
+            data = datafile.get_data(
+                group="trials",
+                trial=10,
+                topic="pupil",
+                eye=0,
+                variables=["timestamp", "world_index", "diameter_3d"],
+            )
+            print(data[0])
     
     """
 
@@ -73,23 +91,28 @@ class GazeDataFile:
         Parameters
         ----------
         group: str, default="trials"
-            The data group, can be either "trials" or [TODO] "calibrations".
+            The data group, can be either ``"trials"`` or [TODO] ``"calibrations"``.
         trial: int, default=0
             The trial or calibration number.
         topic: str, default="pupil"
-            The data topic, normally either "pupil" or "gaze".
+            The data topic, normally either ``"pupil"`` or ``"gaze"``.
         eye: {0, 1}, default=0
-            The eye number. 0 for participant's right, 1 for left.
+            The eye number. ``0`` for participant's right, ``1`` for left.
         variables: str | list[str], default="all"
             The variables to extract from the dataset. Can either be a single string 
             representing a single variable's name, or a list of strings representing the 
             names of multiple variables. The variable names can be any top-level 
-            variable name in the dataset, for example "timestamp" or "norm_pos".
+            variable name in the dataset, for example ``"timestamp"`` or ``"norm_pos"``.
+            If ``'all'``, all variables in the dataset are returned.
         
         Returns
         -------
         numpy.ndarray
             A structured array containing the requested variables within the dataset. 
+            The numpy datatype depends on the topic and variables requested.
+
+            See :py:class:`pupiltools.aliases.pupil_datatype` and 
+            :py:class:`pupiltools.aliases.gaze_datatype`.
         """
         if group == "calibrations":
             raise NotImplementedError("Calibrations retrieval not yet implemented.")
@@ -118,9 +141,32 @@ class GazeDataFile:
         trial: int = -1,
         topic: str = "",
         eye: int = -1,
-        method: str = ""
     ) -> AttributesType:
-        """Get the attributes of a member of the HDF File"""
+        """Get the attributes of a member of the HDF File
+
+        HDF file members (groups, datasets) have attributes that specify metadata about
+        that member. This function gets the attributes from a specified member in the 
+        file.
+
+        The path to the member is generated automatically from the parameters. See
+        :py:func:`get_path`.
+
+        Parameters
+        ----------
+        group: str, default=""
+            The HDF file top-level group.
+        trial: int, default=-1
+            The trial group number.
+        topic: str, default=""
+            The dataset topic.
+        eye: int, default=-1
+            The dataset eye id.
+        
+        Returns
+        -------
+        :py:class:`pupiltools.aliases.AttributesType`
+            A dictionary of attributes of the given group or dataset.
+        """
         path = get_path(group=group, trial=trial, topic=topic, eye=eye)
         hdf_member = self.hdf_root[path]
         assert isinstance(hdf_member, h5py.Group | h5py.Dataset) # Assert appeases pylance
@@ -128,6 +174,7 @@ class GazeDataFile:
         return dict(hdf_member.attrs.items())
     
     def close(self):
+        """Close the HDF file connection. Called by context manager automatically."""
         self.hdf_root.close()
 
     def __enter__(self):
@@ -320,17 +367,34 @@ def get_class_data(class_data_file: NpzFile, ids: list[str]
     return labelled_feature_data[:, :-1], labelled_feature_data[:, -1].astype(np.int64), group_labels # type: ignore
 
 
+def _main(data_file_path: Path, topic: str, all_vars: bool):
+    test_set = {"topic": topic}
+    match topic:
+        case "pupil":
+            test_set["eye"] = 0 # type:ignore
+            variables = ["timestamp", "world_index", "diameter_3d"]
+        case "gaze":
+            variables = ["timestamp", "world_index", "norm_pos"]
+        # case _:
+        #     raise NotImplementedError
+    if all_vars:
+        variables = "all"
+    with GazeDataFile(data_file_path, mode="r") as datafile:
+        data = datafile.get_data(variables=variables, **test_set) # type:ignore
+        root_attrs = datafile.get_attributes()
+        trial_attrs = datafile.get_attributes(group="trials", trial=0)
+        data_attrs = datafile.get_attributes(group="trials", trial=0, **test_set) # type:ignore
+    print(data[0])
+    print(data.dtype)
+    print(root_attrs)
+    print(trial_attrs)
+    print(data_attrs)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data_file_path", type=Path, help="Path to the HDF5 data file")
+    parser.add_argument("topic", type=str, help="Dataset topic")
+    parser.add_argument("--all_vars", action="store_true")
     args = parser.parse_args()
-    test_set = {"topic": "pupil", "eye": 0}
-    with GazeDataFile(args.data_file_path, mode="r") as datafile:
-        data = datafile.get_data(
-            variables=["timestamp", "world_index", "diameter_3d"], **test_set
-        )
-        root_attrs = datafile.get_attributes()
-        trial_attrs = datafile.get_attributes(group="trials", trial=0)
-        data_attrs = datafile.get_attributes(group="trials", trial=0, **test_set)
-    print(data[0])
-    print(data.dtype)
+    _main(**vars(args))
