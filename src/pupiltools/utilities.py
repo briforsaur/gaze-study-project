@@ -94,13 +94,6 @@ def get_datetime() -> str:
     return datetime.now().strftime(r"%Y-%m-%dT%H_%M_%S")
 
 
-# Helper class used as a type for matplotlib arrays of Axes
-# Based on https://stackoverflow.com/a/74197401
-T = TypeVar('T')
-class ObjArray(np.ndarray, Generic[T]):
-    def __getitem__(self, key) -> T:
-        return super().__getitem__(key)
-
 if __name__=="__main__":
     typo_str = "2024-09-01-T12:00:00"
     print(f"Typo string: {typo_str}")
