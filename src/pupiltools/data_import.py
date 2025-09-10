@@ -318,13 +318,18 @@ def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "tria
         participant_metadata = datafile.get_attributes()
         for i_trial in range(datafile.n_trials):
             attr = datafile.get_attributes(group=group, trial=i_trial)
-            data = get_eye_data(datafile, variables=variables, trial=i_trial, group=group, topic=topic)
+            data = _get_eye_data(datafile, variables=variables, trial=i_trial, group=group, topic=topic)
             participant_data.append({"attributes": attr, "data": data})
     return participant_data, participant_metadata
 
 
 def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", variables: str | Iterable[str] = "all") -> tuple[ResampledParticipantDataType, dict]:
-    """Get resampled participant data from an HDF File"""
+    """Get resampled participant data from an HDF File
+    
+    Effectively a wrapper for :py:func:`get_raw_participant_data` with a different 
+    return type. The only difference in the return type is that the numpy arrays in
+    the data are combined for both eyes, i.e. ``N x n_variables x 2``.
+    """
     # Just a wrapper for get_raw_participant data with the correct return type hint
     hdf_path_info = {"group": group, "topic": topic}
     participant_data, participant_metadata = get_raw_participant_data(file=file, variables=variables, **hdf_path_info)
@@ -332,10 +337,40 @@ def get_resampled_participant_data(file: str | bytes | os.PathLike, group: str =
     return participant_data, participant_metadata
 
 
-def get_eye_data(datafile: GazeDataFile, variables: str | Iterable[str], group: str = "trials", trial: int = 0, topic: str = "pupil", eyes: tuple[int,...] = (0, 1)) -> np.ndarray | list[np.ndarray]:
+def _get_eye_data(datafile: GazeDataFile, variables: str | Iterable[str], trial: int, group: str = "trials", topic: str = "pupil", eyes: tuple[int,...] = (0, 1)) -> np.ndarray | list[np.ndarray]:
+    """Get raw or resampled data from an HDF file
+
+    Parameters
+    ----------
+    datafile: GazeDataFile
+        An open GazeDataFile. This function does not handle context management.
+    variables: variables: str | Iterable[str]
+        A single string or list of strings of variable names. See 
+        :py:meth:`GazeDataFile.get_data` for details.
+    trial: int
+        The trial number. Must be greater than or equal to 0.
+    group: str, default="trials"
+        The top-level group in the HDF file.
+    topic: str, default="pupil"
+        Dataset topic.
+    eyes: tuple[int,...], default=(0, 1)
+        Eyes to extract from the dataset. Only valid for raw data files, which store
+        the data for each eye in separate datasets. For a resampled data file, this
+        parameter has no effect.
+    
+    Returns
+    -------
+    np.ndarray | list[np.ndarray]
+        A numpy array (if the file is the resampled data) or list of numpy arrays (if 
+        the file is the raw data). The two types of data files store eye data slightly
+        differently: raw data HDF files have the eye data stored in two separate 
+        datasets, one for each eye, whereas the resampled data HDF files have the eye
+        data stored in a single, multidimensional numpy array.
+    """
     group_path = get_path(group=group, trial=trial)
     group_obj: h5py.Group = datafile.hdf_root[group_path] # type: ignore
     data = []
+    # Check to see if the eye data is split across 2 datasets (raw data) or in one (resampled)
     for eye in eyes:
         if get_dataset_name(topic=topic, eye=eye) in group_obj:
             data.append(datafile.get_data(group=group, trial=trial, topic=topic, eye=eye, variables=variables))
