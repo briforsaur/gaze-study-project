@@ -111,8 +111,8 @@ class GazeDataFile:
             A structured array containing the requested variables within the dataset. 
             The numpy datatype depends on the topic and variables requested.
 
-            See :py:class:`pupiltools.aliases.pupil_datatype` and 
-            :py:class:`pupiltools.aliases.gaze_datatype`.
+            See :py:type:`pupiltools.aliases.pupil_datatype` and 
+            :py:type:`pupiltools.aliases.gaze_datatype`.
         """
         if group == "calibrations":
             raise NotImplementedError("Calibrations retrieval not yet implemented.")
@@ -164,7 +164,7 @@ class GazeDataFile:
         
         Returns
         -------
-        :py:class:`pupiltools.aliases.AttributesType`
+        :py:type:`pupiltools.aliases.AttributesType`
             A dictionary of attributes of the given group or dataset.
         """
         path = get_path(group=group, trial=trial, topic=topic, eye=eye)
@@ -308,9 +308,9 @@ def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "tria
     
     Returns
     -------
-    participant_data: :py:class:`pupiltools.aliases.RawParticipantDataType`
+    participant_data: :py:type:`pupiltools.aliases.RawParticipantDataType`
         A list of metadata and data for each trial.
-    participant_metadata: :py:class:`pupiltools.aliases.AttributesType`
+    participant_metadata: :py:type:`pupiltools.aliases.AttributesType`
         A dictionary of metadata describing the participant's demographics.
     """
     participant_data = []

@@ -19,30 +19,43 @@ represents a dictionary holding that metadata. For example::
         "task": 'observation',
         "trial": 0,
     }
+
+The HDF file root also has metadata in the form::
+
+    {
+        'Age Group': '18 to 24', 
+        'Dominant Hand': 'Right', 
+        'Gender': 'Man', 
+        'date': '2024-11-15T09:58:07', 
+        'participant_id': 'P99'
+    }
+
+Additionally, datasets can have metadata with similar structure describing the method
+and other information.
 """
 
 TrialDataType: TypeAlias = dict[str, AttributesType | list[np.ndarray]]
 """Type alias for the trial data returned from raw data HDF files
 
 Each trial in a dataset has metadata and data. The metadata is associated with the
-``"attributes"`` key and is of type ``AttributesType``. The data is associated with the 
-``"data"`` key and is a 2-element list (one for each eye) of numpy record arrays of type
-``pupil_datatype``.
+``"attributes"`` key and is of type :py:type:`AttributesType`. The data is associated 
+with the ``"data"`` key and is a 2-element list (one for each eye) of numpy record 
+arrays of type :py:type:`pupil_datatype`.
 """
 
 RawParticipantDataType: TypeAlias = list[TrialDataType]
-"""Type alias for a list of ``TrialDataType``"""
+"""Type alias for a list of :py:type:`TrialDataType`"""
 
 ResampledTrialDataType: TypeAlias = dict[str, AttributesType | np.ndarray]
 """Type alias for the trial data returned from resampled data HDF files
 
-Similar to ``TrialDataType``, except that after resampling the numpy record arrays for 
-each eye in the ``"data"`` field are combined into a single, multidimensional numpy 
-array rather than being multiple entries in a list.
+Similar to :py:type:`TrialDataType`, except that after resampling the numpy record 
+arrays for each eye in the ``"data"`` field are combined into a single, multidimensional
+numpy array rather than being multiple entries in a list.
 """
 
 ResampledParticipantDataType: TypeAlias = list[ResampledTrialDataType]
-"""Type alias for a list of ``ResampledTrialDataType``"""
+"""Type alias for a list of :py:type:`ResampledTrialDataType`"""
 
 # NumPy datatype aliases
 planar_position_dt = np.dtype([("x", np.double), ("y", np.double)])
