@@ -27,7 +27,7 @@ def plot_raw_pupil_diameter_comparison(
             ax.set_title(title.capitalize())
             ax.set_xlabel("Time [s]")
             ax.set_ylabel("Normalized Diameter [mm/mm]")
-            ax.set_ylim([-0.3, 0.3])
+            ax.set_ylim((-0.3, 0.3))
             ax.grid()
         for trial_data in participant_data:
             t = trial_data["data"][eye]["timestamp"]
@@ -65,7 +65,7 @@ def resample_comparison(
         ax.set_xlabel("Time [s]")
         ax.set_ylabel(y_lbl)
         ax.legend()
-    ax.set_ylim(0.6, 1.1)
+    ax.set_ylim(0.6, 1.1) #type:ignore
     return fig
 
 
@@ -108,7 +108,7 @@ def plot_trendlines(
                 trendline_array[:, i, :],
                 xlabel="Time [s]",
                 ylabel="Fractional Change in Pupil Diameter",
-                xlim=[0, 4.25],
+                xlim=(0., 4.25),
                 title=f"eye{i}",
                 label=task,
                 alpha=0.2,
@@ -121,7 +121,7 @@ def plot_trendline_range(
     Y: np.ndarray,
     xlabel: str,
     ylabel: str,
-    xlim: tuple[float] = None,
+    xlim: tuple[float, float] | None = None,
     title: str = "",
     label: str = "",
     alpha: float = 0.2,
@@ -202,7 +202,7 @@ def manual_hist(
     fig, ax = plt.subplots(1, figsize=(16, 9))
     task_labels = ["action", "observation"]
     if normalize:
-        values: np.ndarray = values / values.sum(axis=0)
+        values = values / values.sum(axis=0)
     for i in (0, 1):
         ax.bar(
             bin_edges[:-1],

@@ -212,7 +212,7 @@ def resample_dataset(
     # Replace weighted average time & confidence with correct time & confidence
     resampled_array["timestamp"] = t_array
     resampled_array["confidence"] = conf_array
-    if "world_index" in eye_data.dtype.names:
+    if "world_index" in eye_data.dtype.names: # type:ignore
         # Need to correct world index: the result of the matrix multiplication between
         # an int (world_index) and float (weight_matrix) casts the result as a float.
         # When the unstructured array is converted back to a structured array, the
