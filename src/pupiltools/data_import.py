@@ -290,8 +290,29 @@ def get_dataset_name(topic: str = "", eye: int = -1) -> str:
     return "_".join(dataset_name_list)
 
 
-def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", variables: str | Iterable[str] = "all") -> tuple[RawParticipantDataType, dict]:
-    """Get raw participant data from an HDF File for all trials"""
+def get_raw_participant_data(file: str | bytes | os.PathLike, group: str = "trials", topic: str = "pupil", variables: str | Iterable[str] = "all") -> tuple[RawParticipantDataType, AttributesType]:
+    """Get raw participant data from an HDF File for all trials
+    
+    Parameters
+    ----------
+    file: str | bytes | os.PathLike
+        HDF file path, or an open file.
+    group: str, default="trials"
+        HDF top-level data group.
+    topic: str, default="pupil"
+        Dataset topic.
+    variables: str | Iterable[str], default="all"
+        Variable(s) to export. Can be a single string with a variable name or "all", in
+        which case all variables will be imported, or a list of strings of variable 
+        names if only a subset of variables is desired.
+    
+    Returns
+    -------
+    participant_data: :py:class:`pupiltools.aliases.RawParticipantDataType`
+        A list of metadata and data for each trial.
+    participant_metadata: :py:class:`pupiltools.aliases.AttributesType`
+        A dictionary of metadata describing the participant's demographics.
+    """
     participant_data = []
     with GazeDataFile(file, mode='r') as datafile:
         participant_metadata = datafile.get_attributes()
