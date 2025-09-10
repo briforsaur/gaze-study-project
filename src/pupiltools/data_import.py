@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from collections.abc import Iterable
 from typing import cast
-from .aliases import pupil_datatype, AttributesType, RawParticipantDataType, ResampledParticipantDataType
+from .aliases import pupil_datatype, gaze_datatype, AttributesType, RawParticipantDataType, ResampledParticipantDataType
 from .utilities import make_digit_str
 
 
@@ -63,7 +63,6 @@ class GazeDataFile:
         trial: int = 0,
         topic: str = "pupil",
         eye: int = -1,
-        method: str = "3d",
         variables: str | Iterable[str] = "all",
     ) -> np.ndarray:
         """Get a numpy array from a gaze study dataset.
@@ -78,11 +77,9 @@ class GazeDataFile:
         trial: int, default=0
             The trial or calibration number.
         topic: str, default="pupil"
-            The data topic, can be either "pupil" or [TODO] "gaze".
+            The data topic, normally either "pupil" or "gaze".
         eye: {0, 1}, default=0
             The eye number. 0 for participant's right, 1 for left.
-        method: str, default="3d"
-            The method used to track the pupil. Can be either "3d" or [TODO] "2d".
         variables: str | list[str], default="all"
             The variables to extract from the dataset. Can either be a single string 
             representing a single variable's name, or a list of strings representing the 
@@ -94,13 +91,22 @@ class GazeDataFile:
         numpy.ndarray
             A structured array containing the requested variables within the dataset. 
         """
-        datapath = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
+        if group == "calibrations":
+            raise NotImplementedError("Calibrations retrieval not yet implemented.")
+        datapath = get_path(group=group, trial=trial, topic=topic, eye=eye)
         dataset = self.hdf_root[datapath]
         assert isinstance(dataset, h5py.Dataset) # Assert appeases pylance
         if isinstance(variables, str) and variables == "all":
             # Preallocate an array and read the dataset in directly to avoid an
             # intermediate copy of the entire dataset
-            data = np.empty(shape=dataset.shape, dtype=pupil_datatype)
+            match topic:
+                case "pupil":
+                    dtype = pupil_datatype
+                case "gaze":
+                    dtype = gaze_datatype
+                case _:
+                    raise NotImplementedError(f"No known numpy datatype corresponding to {topic}")
+            data = np.empty(shape=dataset.shape, dtype=dtype)
             dataset.read_direct(data)
         else:
             data = dataset.fields(variables)[:]
@@ -115,7 +121,7 @@ class GazeDataFile:
         method: str = ""
     ) -> AttributesType:
         """Get the attributes of a member of the HDF File"""
-        path = get_path(group=group, trial=trial, topic=topic, eye=eye, method=method)
+        path = get_path(group=group, trial=trial, topic=topic, eye=eye)
         hdf_member = self.hdf_root[path]
         assert isinstance(hdf_member, h5py.Group | h5py.Dataset) # Assert appeases pylance
         # Need to use dict() to avoid shallow copy that is left dangling on file close
@@ -138,15 +144,34 @@ def get_path(
     trial: int = -1,
     topic: str = "",
     eye: int = -1,
-    method: str = ""
 ) -> str:
     """Generate an internal HDF path to the desired group or dataset
     
     All parameters are empty or invalid by default. If left as defaults, they will
     not be included in the path.
 
-    Examples:
+    If ``topic`` is not an empty string, a dataset name is generated from ``topic`` and
+    ``eye`` by :py:func:`get_dataset_name`.
 
+    Parameters
+    ----------
+    group: str, default=""
+        The top-level data group in the file. Reserved names: ``'root'`` and ``'/'``
+        result in the root group being returned and all other parameters are ignored.
+    trial: int, default=-1
+        The trial number. Must be greater than or equal to 0.
+    topic: str, default=""
+        The dataset topic.
+    eye: int, default=-1
+        The dataset eye id.
+
+    Returns
+    -------
+    str
+        A path to the desired group or dataset in the HDF file.
+
+    Examples
+    --------
     >>> get_path()
     '/'
     >>> get_path("/")
@@ -157,24 +182,62 @@ def get_path(
     '/trials'
     >>> get_path(group="trials", trial=0)
     '/trials/000'
-    >>> get_path(group="trials", trial=0, topic="pupil", eye=0, method="3d")
+    >>> get_path(group="trials", trial=0, topic="pupil", eye=0)
     '/trials/000/pupil_eye0_3d'
-    >>> get_path(group="trials", trial=0, topic="pupil", method="3d")
+    >>> get_path(group="trials", trial=0, topic="gaze")
 
     """
-    trial_str = make_digit_str(trial, width=3) if trial >= 0 else ""
-    dataset_name = get_dataset_name(topic, eye, method)
-    # Creating a list of non-empty path members
-    pathlist = [var for var in [group, trial_str, dataset_name] if var]
     if group in ["root", "/"]:
         path = "/"
     else:
+        trial_str = make_digit_str(trial, width=3) if trial >= 0 else ""
+        dataset_name = get_dataset_name(topic, eye)
+        # Creating a list of non-empty path members
+        pathlist = [var for var in [group, trial_str, dataset_name] if var]
         path = "/" + "/".join(pathlist)
     return path
 
 
-def get_dataset_name(topic: str = "", eye: int = -1, method: str = "") -> str:
-    eye_str = f"eye{eye}" if eye in [0, 1] else ""
+def get_dataset_name(topic: str = "", eye: int = -1) -> str:
+    """Generate a dataset name string from a topic and eye id
+
+    Generates a dataset name from the parameters. The default behaviour results in an
+    empty string so that this function can be used in group lookup as well.
+
+    Parameters
+    ----------
+    topic: str, default=""
+        The data topic name.
+    eye: int, default=-1
+        The eye id for when the topic is ``'pupil'``. Acceptable values are 0 or 1.
+    
+    Returns
+    -------
+    str
+        The dataset name, if a non-empty topic string is given, or an empty string.
+    
+    Raises
+    ------
+    ValueError
+        If the ``topic`` is ``'pupil'`` and the ``eye`` parameter is not ``0`` or ``1``.
+
+    Examples
+    --------
+    >>> get_dataset_name()
+    ''
+    >>> get_dataset_name("pupil", 0)
+    'pupil_eye0_3d'
+    >>> get_dataset_name("gaze")
+    'gaze'
+    """
+    eye_str = ""
+    method = ""
+    if topic == "pupil":
+        method = "3d"
+        if eye in [0, 1]:
+            eye_str = f"eye{eye}"
+        else:
+            raise ValueError("Pupil topic requires an eye index of 0 or 1.")
     # Making the dataset name out of nonempty string parts
     dataset_name_list = [part for part in [topic, eye_str, method] if part]
     return "_".join(dataset_name_list)
@@ -206,11 +269,11 @@ def get_eye_data(datafile: GazeDataFile, variables: str | Iterable[str], group: 
     group_obj: h5py.Group = datafile.hdf_root[group_path] # type: ignore
     data = []
     for eye in eyes:
-        if get_dataset_name(topic=topic, eye=eye, method=method) in group_obj:
-            data.append(datafile.get_data(group=group, trial=trial, topic=topic, eye=eye, method=method, variables=variables))
+        if get_dataset_name(topic=topic, eye=eye) in group_obj:
+            data.append(datafile.get_data(group=group, trial=trial, topic=topic, eye=eye, variables=variables))
     # If the data list is still empty, then the eyes must be in a single dataset
     if not data:
-        data = datafile.get_data(group=group, trial=trial, topic=topic, eye=-1, method=method, variables=variables)
+        data = datafile.get_data(group=group, trial=trial, topic=topic, eye=-1, variables=variables)
     return data
 
 
@@ -261,7 +324,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data_file_path", type=Path, help="Path to the HDF5 data file")
     args = parser.parse_args()
-    test_set = {"topic": "pupil", "eye": 0, "method": "3d"}
+    test_set = {"topic": "pupil", "eye": 0}
     with GazeDataFile(args.data_file_path, mode="r") as datafile:
         data = datafile.get_data(
             variables=["timestamp", "world_index", "diameter_3d"], **test_set
