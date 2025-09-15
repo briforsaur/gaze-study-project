@@ -7,6 +7,7 @@ from matplotlib.figure import Figure as mpl_fig, SubFigure as mpl_subfig
 from numpy import typing as npt
 import numpy as np
 from .aliases import RawParticipantDataType, pupil_datatype
+from .constants import TASK_TYPES
 
 
 _cm = 1 / 2.54
@@ -27,7 +28,7 @@ def plot_raw_pupil_diameter_comparison(
     ----------
     participant_data: :py:type:`pupiltools.aliases.RawParticipantDataType`
         A list of trials with metadata and data.
-        
+
     Returns
     -------
     matplotlib.Figure
@@ -36,11 +37,10 @@ def plot_raw_pupil_diameter_comparison(
     fig = plt.figure(figsize=(15, 10))
     subfigs = fig.subfigures(1, 2)
     fig.suptitle("Comparison of Relative Pupil Diameter Change from Baseline")
-    tasks = ("action", "observation")
     subfig: mpl_subfig
     for eye, subfig in enumerate(subfigs):
         axs = subfig.subplots(2, 1)
-        plot_topics: dict[str, mpl_axes] = dict(zip(tasks, axs))
+        plot_topics: dict[str, mpl_axes] = dict(zip(TASK_TYPES, axs))
         for title, ax in plot_topics.items():
             ax.set_title(title.capitalize())
             ax.set_xlabel("Time [s]")
@@ -67,6 +67,28 @@ def resample_comparison(
     ylabel: str,
     title: str = "",
 ) -> mpl_fig:
+    """Plot a comparison of one data variable and confidence before and after resampling
+
+    Produces a figure with 2x1 subplots. The top subplot shows the selected variable
+    over time before and after resampling. The bottom subplot shows the pupil detection
+    confidence over time before and after resampling.
+
+    Parameters
+    ----------
+    old_data: np.ndarray
+        A numpy record array of variables. Must include the variables ``'timestamp'``, 
+        ``'confidence'``, and the value of the parameter ``variable``.
+    rs_data: np.ndarray
+        A numpy record array of variables. Must include the same three values required
+        by ``old_data``.
+    variable: str
+        The name of the variable to plot in the top subplot. For example, 
+        ``"diameter_3d"``.
+    ylabel: str
+        The label for the y-axis of the top subplot.
+    title: str, default=""
+        The title of the plot.
+    """
     if not title:
         dt = rs_data["timestamp"][1]
         title = f"Comparison of Data After Resampling at {1/dt:0.1f} Hz"
@@ -90,6 +112,21 @@ def resample_comparison(
 
 
 def plot_dt_histogram(time_deltas: list[np.ndarray]) -> mpl_fig:
+    """Plot a histogram of time differences between samples
+
+    Produces a histogram showing the distribution of time differences between samples
+    across a number of trials.
+
+    Parameters
+    ----------
+    time_deltas: list[np.ndarray]
+        A list of arrays of time differences between each samples.
+    
+    Returns
+    -------
+    matplotlib.Figure
+        Handle to the created figure.
+    """
     dt_array = np.concatenate(time_deltas)
     fig, ax = plt.subplots()
     fig.suptitle("Probability Mass Function of Time Between Samples")
@@ -107,15 +144,23 @@ def plot_trendlines(
 ):
     """Plot a comparison of pupil diameter for actions and observations for both eyes
 
+    Produces a figure with 2x1 subplots showing the average pupil dilation over time for
+    all trials of the same task type, with shaded regions showing the distribution of
+    the pupil dilation.
+
+    See also :py:func:`plot_trendline_range`.
+
     Parameters
     ----------
     t: dict[str, numpy.ndarray[numpy.float64]]
-        A dictionary of arrays of shape N, representing the time of each sample.
+        A dictionary of arrays of shape N, representing the time of each sample. The
+        dictionary keys are the task type names, e.g. ``("action", "observation")``.
     trendline_array: dict[str, numpy.ndarray[numpy.float64]]
         A dictionary of Nx2x3 arrays, where the first dimension is the samples in time,
         the second dimension is the eye number (0 for right, 1 for left), and the third
         dimension stacks the different statistics (0 for bottom range, 1 for mean or
-        median - what will be displayed as a line, and 1 for top range).
+        median - what will be displayed as a line, and 1 for top range). The dictionary 
+        keys are the task type names, matching the keys for ``t``.
     """
     fig, axs = plt.subplots(2, figsize=(30 * _cm, 25 * _cm))
     fig.suptitle(title)
@@ -148,10 +193,14 @@ def plot_trendline_range(
 ):
     """Plot a trendline with percentiles as shaded regions
 
+    Produces a plot of a line surrounded by shaded regions. The range of the shaded 
+    regions are determined by the ``Y`` parameter. If the regions are intended to 
+    represent 5th and 95th percentiles, that calculation must be performed first.
+
     Parameters
     ----------
     ax: matplotlib.axes.Axes
-        Axis on which to plot.
+        Axes on which to plot.
     x: np.ndarray
         A 1-D array of length N representing the x-axis values.
     Y: np.ndarray
@@ -188,6 +237,20 @@ def plot_trendline_range(
 
 
 def plot_max_values(max_values: dict[str, np.ndarray]):
+    """Plot a histogram of values separated by task type
+
+    Plots a figure with 2x1 subplots. The subplots show histograms of the maximum pupil
+    diameter change as a fraction of the mean pupil diameter for the first 1 second,
+    separated by the keys of the input data dictionary. The top and bottom subplots show
+    the distribution for eye 0 (participant's right eye) and 1 (participant's left eye),
+    respectively.
+
+    Parameters
+    ----------
+    max_values: dict[str, np.ndarray]
+        A dictionary of numpy arrays, where the keys of the dictionary are the separate
+        groups to be plotted, e.g. the task types ``("action", "observation")``.
+    """
     fig1, axs = plt.subplots(2, figsize=(16, 9))
     fig1.suptitle("Distribution of Maximum Fractional Pupil Diameter Change")
     ax: mpl_axes
@@ -205,12 +268,6 @@ def plot_max_values(max_values: dict[str, np.ndarray]):
         ax.legend()
         ax.set_xlabel("Max Fractional Change in Pupil Diameter")
         ax.set_ylabel("Proportion of Trials")
-    # TODO: FIX BROKEN CODE BELOW
-    # fig2, ax = plt.subplots(1, figsize=(16, 9))
-    # for j in (0, 1):
-    #     max_values_sum = max_values[:,:,j].sum(axis=1)
-    #     #weights = np.ones_like(max_values_sum)/max_values_sum.size
-    #     ax.hist(max_values_sum, bins="auto", histtype="barstacked", label=task_labels[j], alpha=0.7)
 
 
 def manual_hist(
@@ -219,10 +276,36 @@ def manual_hist(
     split: float | None = None,
     normalize: bool = False,
 ):
+    """Plot a histogram of the maximum change in pupil diameter between task types
+
+    Produces a histogram with two sets of columns, one column colour representing action
+    and the other observation tasks, showing the distribution of maximum fractional
+    change in pupil diameter.
+
+    This function allows two datasets to be plotted as histograms with the same bin
+    sizes and placements for easy comparison.
+
+    Parameters
+    ----------
+    values: np.ndarray
+        An Nx2 array of maximum pupil diameter change, where N is the number of trials
+        and columns 0 and 1 are the values for action and observation trials,
+        respectively.
+    bin_edges: np.ndarray
+        An array of floats representing the left edges of the bars in the histogram.
+    split: float | None, default=None
+        The value that maximally splits the two classes, represented as a dashed,
+        vertical line on the plot. Default does not show a line.
+    normalize: bool = False
+        Flag to indicate whether the values should be normalized to show a proportion
+        of trials. If false, the histogram shows the total number of trials.
+    """
     fig, ax = plt.subplots(1, figsize=(16, 9))
-    task_labels = ["action", "observation"]
     if normalize:
         values = values / values.sum(axis=0)
+        y_label = "Proportion of Trials"
+    else:
+        y_label = "Number of Trials"
     for i in (0, 1):
         ax.bar(
             bin_edges[:-1],
@@ -230,11 +313,11 @@ def manual_hist(
             0.025,
             align="edge",
             alpha=0.8,
-            label=task_labels[i],
+            label=TASK_TYPES[i],
         )
     if split is not None:
         ax.axvline(split, color="k", ls="--")
     plt.legend()
     ax.set_xlabel("Maximum Fractional Change in Pupil Diameter")
-    ax.set_ylabel("Proportion of Trials")
+    ax.set_ylabel(y_label)
     fig.suptitle("Comparison of Pupil Diameter Change By Task Type")

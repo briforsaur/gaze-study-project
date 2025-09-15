@@ -340,7 +340,7 @@ def get_max_values(data_array: np.ndarray) -> np.ndarray:
 
 def calc_split(
     class_distribution: np.ndarray, bin_edges: np.ndarray
-) -> tuple[float, tuple[float, float]]:
+) -> float:
     # Find pupil diameter increase that maximally separates the classes
     # Brute force SVM solution based on squared hinge loss:
     min_loss = np.inf
@@ -355,7 +355,7 @@ def calc_split(
             split = b
         else:
             break
-    return split  # type: ignore
+    return split
 
 
 def count_tasks(participant_data: ResampledParticipantDataType) -> dict[str, int]:
