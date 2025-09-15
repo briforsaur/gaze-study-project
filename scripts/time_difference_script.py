@@ -56,7 +56,7 @@ if __name__ == "__main__":
     variables = ("timestamp", "diameter_3d")
     eyes = (0, 1)
     file_path = args.data_path / f"{args.participant_id}.hdf5"
-    hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
+    hdf_path_info = {"group": "trials", "topic": "pupil"}
     participant_data, _ = d_import.get_raw_participant_data(
         file_path, variables=variables, **hdf_path_info
     )
