@@ -45,7 +45,7 @@ def get_args() -> Args:
 def main(args: Args):
     variables = ("timestamp", "diameter_3d", "confidence")
     file_path = args.data_path / f"{args.participant_id}.hdf5"
-    hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
+    hdf_path_info = {"group": "trials", "topic": "pupil"}
     participant_data, participant_metadata = d_import.get_resampled_participant_data(
         file_path, variables=variables, **hdf_path_info
     )

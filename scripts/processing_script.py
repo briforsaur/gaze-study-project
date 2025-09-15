@@ -55,7 +55,7 @@ def main(
 ):
     logging.basicConfig(level=logging.INFO)
     variables = ("timestamp", "confidence", "diameter_3d", "theta", "phi")
-    hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
+    hdf_path_info = {"group": "trials", "topic": "pupil"}
     participant_ids = ["P" + make_digit_str(i, 2) for i in range(1, 31)]
     processed_data = {}
     with open(filter_config_file, mode="r") as config_file:

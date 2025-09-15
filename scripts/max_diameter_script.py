@@ -40,7 +40,7 @@ def get_args() -> Args:
 def main(args: Args):
     logging.basicConfig(level=logging.INFO)
     variables = ("timestamp", "diameter_3d", "confidence")
-    hdf_path_info = {"group": "trials", "topic": "pupil", "method": "3d"}
+    hdf_path_info = {"group": "trials", "topic": "pupil"}
     participant_ids = ["P"+make_digit_str(i, 2) for i in range(1,31)]
     n_bins = 20
     max_val_hist = np.zeros((n_bins,2), dtype=np.int64)
