@@ -9,7 +9,7 @@ import numpy.typing as npt
 import scipy.signal as sig
 from sklearn.impute import SimpleImputer
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Collection
 from .aliases import (
     RawParticipantDataType,
     TrialDataType,
@@ -23,6 +23,31 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FilterConfig:
+    """A dataclass for defining filter configurations
+
+    The attributes of this class correspond to the configuration of a
+    scipy.signal.iirfilter second-order-sections filter (see 
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirfilter.html).
+
+    Attributes
+    ----------
+    ftype: str
+        The type of IIR filter to design:
+
+            - Butterworth   : ``'butter'``
+            - Chebyshev I   : ``'cheby1'``
+            - Chebyshev II  : ``'cheby2'``
+            - Cauer/elliptic: ``'ellip'``
+            - Bessel/Thomson: ``'bessel'``
+    btype: ``{'bandpass', 'lowpass', 'highpass', 'bandstop'}``
+        The type of filter.
+    N: int
+        The order of the filter.
+    Wn: float
+        A scalar giving the critical frequency. ``Wn`` is in the same units as ``fs``.
+    fs: float
+        The sampling frequency.
+    """
     ftype: str
     btype: str
     N: int
@@ -30,7 +55,7 @@ class FilterConfig:
     fs: float
 
 
-def calc_deltas(array: np.ndarray) -> np.ndarray:
+def _calc_deltas(array: np.ndarray) -> np.ndarray:
     """Calculates the differences between adjacent values in an array
 
     For an input array of length N, the function returns an N-1 array
@@ -43,7 +68,7 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
 
     Parameters
     ----------
-    participant_data: list[np.ndarray]
+    participant_data: :py:type:`pupiltools.aliases.RawParticipantDataType`
         A list of NumPy ndarrays, where each array is the time vector for a specific
         trial and eye dataset.
 
@@ -61,7 +86,7 @@ def get_time_deltas(participant_data: RawParticipantDataType) -> list[np.ndarray
         for eye in (0, 1):
             t = trial["data"][eye]["timestamp"]  # type: ignore
             assert isinstance(t, np.ndarray)
-            dt = calc_deltas(t)
+            dt = _calc_deltas(t)
             t_deltas.append(dt)
     return t_deltas
 
@@ -75,13 +100,13 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
         A list of NumPy ndarrays, where each item in the list corresponds to a
         trial number and eye number (0 is trial 0, eye 0, 1 is trial 0, eye 1,
         2 is trial 1, eye 0, etc.). Each array is the time difference between
-        adjacent samples for that trial and eye.
+        adjacent samples for that trial and eye. See :py:func:`get_time_deltas`.
 
     Returns
     -------
     dict[str, np.float64]
-    A dictionary of statistics of the data, including the mean, min, 5th
-    percentile, median, 95th percentile, 99th percentile, and maximum values.
+        A dictionary of statistics of the data, including the mean, min, 5th
+        percentile, median, 95th percentile, 99th percentile, and maximum values.
     """
     t_delta_array = np.concatenate(t_deltas)
     percentiles = [5, 50, 95, 99]
@@ -101,14 +126,31 @@ def get_time_delta_stats(t_deltas: list[np.ndarray]) -> dict[str, np.float64]:
 def resample_data(
     participant_data: RawParticipantDataType, dt: float
 ) -> ResampledParticipantDataType:
-    """Resample all datasets for a list of participant data"""
+    """Resample all datasets for a list of participant data
+    
+    Parameters
+    ----------
+    participant_data: :py:type:`pupiltools.aliases.RawParticipantDataType`
+        The original, unprocessed eye tracking pupil data. A list of dictionaries of
+        metadata and data with uneven sampling time intervals.
+    dt: float
+        The desired time between samples for the resampled data.
+    
+    Returns
+    -------
+    :py:type:`pupiltools.aliases.ResampledParticipantDataType`
+        The resampled data, with the same overall metadata and data structure, except
+        for the data arrays themselves. Since the data now has consistent sampling times
+        across both eyes, the data for both eyes are combined into a single numpy array
+        rather than separate arrays as in the original data.
+    """
     resampled_data = []
     for trial_data in participant_data:
         old_t_arrays = [trial_data["data"][eye]["timestamp"] for eye in (0, 1)]  # type: ignore
-        t_start, t_stop, t_ins = get_key_times(
+        t_start, t_stop, t_ins = _get_key_times(
             old_t_arrays, trial_data["attributes"]["t_instruction"], dt  # type: ignore
         )
-        resampled_array = resample_trial(trial_data, t_start, t_stop, dt)
+        resampled_array = _resample_trial(trial_data, t_start, t_stop, dt)
         keys = ("die", "recording", "task", "trial")
         resampled_attributes = {k: trial_data["attributes"][k] for k in keys}  # type: ignore
         resampled_attributes.update(
@@ -120,10 +162,21 @@ def resample_data(
     return resampled_data
 
 
-def resample_trial(
+def _resample_trial(
     trial_data: TrialDataType, t_start: float, t_stop: float, dt: float
 ) -> np.ndarray:
     """Resample the data for both eyes for a single trial
+
+    Parameters
+    ----------
+    trial_data: :py:type:`pupiltools.aliases.TrialDataType`
+        A dictionary of metadata and data for a single trial.
+    t_start: float
+        The timestamp in recording time to start the resampling and set as zero time.
+    t_stop: float
+        The time in seconds from t_start to the end of the resampled time range.
+    dt: float
+        The desired time between samples for the resampled data.
 
     Returns
     -------
@@ -140,26 +193,57 @@ def resample_trial(
     for n_eye, eye_data in enumerate(trial_data["data"]):
         assert isinstance(eye_data, np.ndarray)
         t_old = eye_data["timestamp"] - t_start
-        weight_matrix, conf_array = calc_weight_and_confidence(
+        weight_matrix, conf_array = _calc_weight_and_confidence(
             eye_data, t_array, t_old, dt
         )
-        resampled_array[:, n_eye] = resample_dataset(
+        resampled_array[:, n_eye] = _resample_dataset(
             eye_data, weight_matrix, t_array, conf_array
         )
     return resampled_array
 
 
-def get_key_times(
+def _get_key_times(
     time_arrays: list[npt.NDArray[np.float64]], t_instruction: float, dt: float
 ) -> tuple[float, float, float]:
+    """Get important time values and timestamps based on the timestamps of two arrays
+
+    Parameters
+    ----------
+    time_arrays: list[npt.NDArray[np.float64]]
+        Two-element list of timestamp arrays, one for each eye. The timestamps should be
+        in recording time.
+    t_instruction: float
+        The timestamp in recording time that the instruction was delivered.
+    dt: float
+        The desired sampling interval in seconds.
+    
+    Returns
+    -------
+    t_start: float
+        The smallest timestamp in the pair of arrays in ``time_arrays``.
+    t_stop: float
+        The time in seconds from ``t_start`` until the smallest ending timestamp in the
+        pair of arrays in ``time_arrays``.
+    t_ins: float
+        The time in seconds from ``t_start`` until ``t_instruction``, rounded to the
+        nearest ``dt`` seconds.
+
+    Example
+    -------
+
+    >>> import numpy as np
+    >>> t = [np.arange(0.1, 1.2, 0.01), np.arange(0.15, 1.1, 0.015)]
+    >>> _get_key_times(t, 0.5, 0.03)         
+    (0.1, 0.99, 0.39)
+    """
     t_start = min([time_arrays[eye][0] for eye in (0, 1)])
     t_end = min([time_arrays[eye][-1] for eye in (0, 1)])
     t_stop = round((t_end - t_start) / dt) * dt
     t_ins = round((t_instruction - t_start) / dt) * dt
-    return t_start, t_stop, t_ins
+    return float(t_start), t_stop, t_ins
 
 
-def calc_weight_and_confidence(
+def _calc_weight_and_confidence(
     eye_data: np.ndarray,
     t_array: npt.NDArray[np.float64],
     t_old: npt.NDArray[np.float64],
@@ -195,7 +279,7 @@ def calc_weight_and_confidence(
     return weight_matrix, conf_array
 
 
-def resample_dataset(
+def _resample_dataset(
     eye_data: np.ndarray,
     weight_matrix: npt.NDArray[np.float64],
     t_array: npt.NDArray[np.float64],
@@ -223,7 +307,7 @@ def resample_dataset(
     return resampled_array
 
 
-def get_max_data_length(data_list: ResampledParticipantDataType) -> int:
+def _get_max_data_length(data_list: ResampledParticipantDataType) -> int:
     max_length = 0
     for data_group in data_list:
         data: np.ndarray = data_group["data"]  # type: ignore
@@ -242,14 +326,14 @@ def convert_to_array(
         A dictionary of structured NxN_tasksx2 array, where the first index is the
         sample number up to N (the maximum length of any of the data series), the
         second index is the task number, in order, for a given task (usually 60, with
-        a couple of exceptions), the third index is the eye ID (0 for right,
-        1 for left), and the fourth index is the task type (0 for action, 1 for
-        observation). For example, output[:, 0, 0, 1] is all samples for the first
-        observation trial, for the right eye. All trial data series that are shorter
-        than the longest series are padded with np.nan.
+        a couple of exceptions), and the third index is the eye ID (0 for right,
+        1 for left). For example, ``output["observation"][:, 0, 1]`` is all samples for
+        the first observation trial, for the left eye. All trial data series that are 
+        shorter than the longest series are padded with np.nan. The keys of the 
+        dictionary are the task names ``("action", "observation")``.
     """
-    N_max = get_max_data_length(participant_data)
-    N_task = count_tasks(participant_data)
+    N_max = _get_max_data_length(participant_data)
+    N_task = _count_tasks(participant_data)
     input_dtype = participant_data[0]["data"].dtype  # type: ignore
     array_dict = {
         "action": np.full(
@@ -297,7 +381,27 @@ def get_trendlines_by_task(data_array: np.ndarray):
 
 
 def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
-    """Normalize the input data to a mean of 0 for the first t_baseline seconds"""
+    """Normalize the input data to a mean of 0 for the first t_baseline seconds
+    
+    Normalizes the ``diameter_3d`` entry of the input array based on a baseline diameter
+    calculated from the data from t = 0 to ``t_baseline``. The baseline is the mean 
+    diameter over that time range. The diameter is normalized by subtracting the 
+    baseline from all data points then dividing by the baseline, resulting in new values
+    for ``diameter_3d`` that represent the relative change in pupil diameter from the
+    baseline diameter.
+
+    .. math::
+
+        d_{norm} = d/d_{baseline} - 1
+
+    Parameters
+    ----------
+    pupil_data: np.ndarray
+        A numpy recarray of pupil data, having at least entries for ``"timestamp"`` and
+        ``"diameter_3d"``. This array is modified in-place.
+    t_baseline: float, default=1.0
+        The time in seconds from t = 0 to use to calculate the baseline pupil diameter.
+    """
     t = pupil_data["timestamp"][:, 0, 0]
     i_baseline = np.max(np.nonzero(t < t_baseline))
     d = pupil_data["diameter_3d"]
@@ -314,15 +418,16 @@ def normalize_pupil_diameter(pupil_data: np.ndarray, t_baseline: float = 1.0):
 def remove_low_confidence(data_array: np.ndarray, confidence_threshold: float = 0.6):
     """Replace low-confidence data in dataset with NaN
 
-    Modifies the input array in-place.
+    Modifies the input array in-place. All data entries with confidence less than
+    ``confidence_threshold`` are replaced by ``numpy.nan``.
 
     Parameters
     ----------
     data_array: numpy.ndarray
         A structured array with fields based on the pupil datatype. This array is
-        modified in-place. All fields except for "timestamp", "confidence", and
-        "world_index" will be affected.
-    confidence_threshold: float = 0.6
+        modified in-place. All fields except for ``"timestamp"``, ``"confidence"``, and
+        ``"world_index"`` will be affected.
+    confidence_threshold: float, default = 0.6
         The confidence value below which data is replaced by NaN. Must be between 0 and
         1.
     """
@@ -335,12 +440,30 @@ def remove_low_confidence(data_array: np.ndarray, confidence_threshold: float = 
 
 
 def get_max_values(data_array: np.ndarray) -> np.ndarray:
+    """Get the maximum values along the first dimension of an array, ignoring NaN"""
     return np.nanmax(data_array, axis=0)
 
 
 def calc_split(
     class_distribution: np.ndarray, bin_edges: np.ndarray
 ) -> float:
+    """Find number that maximally separates two classes according to squared hinge loss
+
+    Parameters
+    ----------
+    class_distribution: np.ndarray
+        An Nx2 array of counts of each class in each bin, e.g. histogram column heights.
+    bin_edges: np.ndarray
+        An N-element array of left-side (lesser-side) histogram bin edges.
+
+    Returns
+    -------
+    float
+        The bin edge corresponding to the maximum separation between the two classes,
+        i.e. the squared hinge loss is minimized when all data points to the one side or
+        the other are assumed to belong to a single class. Effectively a discrete linear
+        SVM solution.
+    """
     # Find pupil diameter increase that maximally separates the classes
     # Brute force SVM solution based on squared hinge loss:
     min_loss = np.inf
@@ -358,7 +481,7 @@ def calc_split(
     return split
 
 
-def count_tasks(participant_data: ResampledParticipantDataType) -> dict[str, int]:
+def _count_tasks(participant_data: ResampledParticipantDataType) -> dict[str, int]:
     """Count the number of times each task type appears in the dataset.
 
     Although the number of tasks is balanced at 60 each for most datasets, there are
@@ -383,6 +506,13 @@ def interpolate_nan(data_array: np.ndarray):
     non-NaN value. NaNs with no following non-NaN data (e.g. at the end of the array)
     are replaced with the last non-NaN value, unless they extend past the defined end
     of the recording (where timestamps are NaN).
+
+    Parameters
+    ----------
+    data_array: np.ndarray
+        A numpy record array which must have the fields ``"timestamp"``, 
+        ``"confidence"``, and at least one other data variable field. Any NaNs in the
+        data variables will be replaced by interpolated or zero-order-hold data.
     """
     data_fields = get_other_fields(("timestamp", "confidence"), data_array.dtype)
     for data_field in data_fields:
@@ -455,7 +585,8 @@ def filter_signal(x: np.ndarray, filter_config: FilterConfig) -> np.ndarray:
     return x_filt[0]  # type: ignore
 
 
-def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
+def _calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
+    """Calculate the first-order approximation of the rate of change"""
     v_data = np.full_like(data, fill_value=0.0)
     v_data[1:-1] = (data[1:-1] - data[0:-2]) / dt
     return v_data
@@ -464,6 +595,26 @@ def calc_rate_of_change(data: np.ndarray, dt: float = 0.01):
 def get_features(
     data: np.ndarray, dt: float = 0.01, t_range: tuple[float, float] = (0.0, np.inf)
 ) -> np.ndarray:
+    """Calculate the mean, max, mean rate of change and max rate of change of a dataset
+
+    Parameters
+    ----------
+    data: np.ndarray
+        An N x N_trials x 2 array, where N is the number of samples in time, N_trials is
+        the number of trials, and last dimension corresponds to eyes 0 and 1.
+    dt: float, default=0.01
+        The sample time interval in seconds for the data in ``data``.
+    t_range: tuple[float, float], default=(0.0, np.inf)
+        The range of timestamps to use to compute the features.
+
+    Returns
+    -------
+    np.ndarray
+        An N_trials x 8 array, where the first pair of columns are the means of the data
+        for eyes 0 and 1 for each trial, the second two pair are the maximums, the third
+        pair are the mean rates of change, and the final pair are the maximum rates of
+        change.
+    """
     # Calculate the index range based on the time range (assumes time starts at 0)
     i_range = np.array(
         [
@@ -472,7 +623,7 @@ def get_features(
         ]
     )
     i_range = i_range.astype(np.int64)
-    v_data = calc_rate_of_change(data, dt)
+    v_data = _calc_rate_of_change(data, dt)
     feature_list = (
         np.nanmean(data[i_range[0] : i_range[1], ...], axis=0),
         np.nanmax(data[i_range[0] : i_range[1], ...], axis=0),
@@ -485,6 +636,8 @@ def get_features(
 
 def get_timeseries(data: np.ndarray, i_range: tuple[int, int]) -> np.ndarray:
     """Reshape timeseries data in a form amenable to neural net input
+
+    The number of pruned tasks, p, is printed to the logger.info stream.
     
     Parameters
     ----------
@@ -504,8 +657,6 @@ def get_timeseries(data: np.ndarray, i_range: tuple[int, int]) -> np.ndarray:
         the final vector for having any NaNs in them. NaNs would be the result of 
         insufficiently long timeseries given the i_range, or extremely poor quality
         data that could not be interpolated.
-
-    The number of pruned tasks, p, is printed to the logger.info stream.
     """
     timeseries = data[i_range[0] : i_range[1], ...]
     timeseries = np.concat(timeseries, axis=1)
@@ -553,7 +704,31 @@ def calc_index_from_time(N: int, t_range: tuple[float, float], dt: float = 0.01)
     return tuple(i_range)
 
 
-def get_all_timeseries(data: np.recarray, i_range: tuple[int, int], variables: tuple[str,...]) -> np.ndarray:
+def get_all_timeseries(data: np.recarray, i_range: tuple[int, int], variables: Collection[str]) -> np.ndarray:
+    """Get timeseries of multiple variables and concatenate them
+
+    Allows extracting timeseries of multiple variables by calling 
+    :py:func:`get_timeseries` for each variable then concatenating all timeseries for 
+    each variable for each trial together to make them easy to input to a multi-layer 
+    perceptron-style network.
+
+    Parameters
+    ----------
+    data: np.recarray
+        A record array of timeseries data, where each variable has its own named field.
+    i_range: tuple[int, int]
+        The range of indices in time to return in the output vector. See 
+        :py:func:`get_timeseries`.
+    variables: Collection[str]
+        A collection (e.g. tuple or list) of variable names corresponding to the fields
+        in ``data`` to be extracted.
+    Returns
+    -------
+    np.ndarray
+        An N_trials x (N*n_variables) array, where N_trials is the number of trials,
+        N is the number of data points in time extracted per variable, and n_variables
+        is the number of variables in ``variables``.
+    """
     all_timeseries = np.zeros((0,0), dtype=np.float64)
     for i, variable in enumerate(variables):
         variable_data = get_timeseries(data[variable], i_range)
@@ -565,6 +740,26 @@ def get_all_timeseries(data: np.recarray, i_range: tuple[int, int], variables: t
 
 
 def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
+    """Impute NaN values in a dataset using sklearn
+
+    Applies an ``sklean.impute.SimpleImputer`` using the ``"mean"`` strategy to fill in
+    ``numpy.nan`` values in a data array.
+
+    Reports the total number of missing values that were imputed to the logging.info
+    stream.
+
+    Parameters
+    ----------
+    feature_array: np.ndarray
+        A numpy array of features to be fed to a neural network, with some values set to
+        NaN due to low confidence.
+    
+    Returns
+    -------
+    np.ndarray
+        An array the same shape and type as ``feature_array``, but with all NaN data
+        replaced by the mean of the corresponding feature.
+    """
     total_nan = np.sum(np.isnan(feature_array))
     logger.info(f"Imputing {total_nan} missing values.")
     mean_imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
@@ -575,5 +770,5 @@ def impute_missing_values(feature_array: np.ndarray) -> np.ndarray:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     test_array = np.array([1, 2, 4, -1, 7])
-    delta_array = calc_deltas(test_array)
+    delta_array = _calc_deltas(test_array)
     assert np.all(delta_array == np.array([1, 2, -5, 8]))

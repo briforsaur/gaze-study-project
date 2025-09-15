@@ -2,7 +2,7 @@
 # Licensed under the MIT License (see LICENSE file in project root)
 
 from argparse import ArgumentParser
-from collections.abc import Iterable
+from collections.abc import Collection
 from pathlib import Path
 import h5py
 import numpy as np
@@ -34,7 +34,7 @@ def get_args():
     return parser.parse_args()
 
 
-def main(data_filepath: Path, export_path: Path, t_max: float, N_trials: int = N_TRIALS, variables: Iterable[str] = DEFAULT_VARS):
+def main(data_filepath: Path, export_path: Path, t_max: float, N_trials: int = N_TRIALS, variables: Collection[str] = DEFAULT_VARS):
     participants = [f"P{make_digit_str(i, width=2)}" for i in range(1, 31)]
     full_variables = ("timestamp", "confidence", *variables)
     features = {}
