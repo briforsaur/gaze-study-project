@@ -30,12 +30,14 @@ def plot_raw_pupil_diameter_comparison(
             ax.set_ylim((-0.3, 0.3))
             ax.grid()
         for trial_data in participant_data:
-            t = trial_data["data"][eye]["timestamp"]
+            t = trial_data["data"][eye]["timestamp"] #type:ignore
+            assert isinstance(t, np.ndarray)
             t = t - t[0]
-            d = trial_data["data"][eye]["diameter_3d"]
+            d = trial_data["data"][eye]["diameter_3d"] #type:ignore
+            assert isinstance(d, np.ndarray)
             # Normalizing by the mean of the first second of data
             d = d / np.mean(d[np.where(t < 1)]) - 1
-            task: str = trial_data["attributes"]["task"]
+            task: str = trial_data["attributes"]["task"] #type:ignore
             plot_topics[task].plot(t, d)
     return fig
 
