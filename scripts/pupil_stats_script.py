@@ -62,10 +62,10 @@ def main(args: Args):
     }
     d_plot.plot_trendlines(
         t,
-        d_trendlines,
+        d_trendlines, #type: ignore
         title="Fractional Change in Pupil Diameter from Baseline Comparison for Two Tasks",
     )
-    d_plot.plot_max_values(max_values)
+    d_plot.plot_max_values(max_values) #type: ignore
     if args.show_plot:
         plt.show()
     pass
