@@ -274,6 +274,8 @@ def get_dataset_name(topic: str = "", eye: int = -1) -> str:
     ''
     >>> get_dataset_name("pupil", 0)
     'pupil_eye0_3d'
+    >>> get_dataset_name("pupil")
+    'pupil_3d'
     >>> get_dataset_name("gaze")
     'gaze'
     """
@@ -283,8 +285,6 @@ def get_dataset_name(topic: str = "", eye: int = -1) -> str:
         method = "3d"
         if eye in [0, 1]:
             eye_str = f"eye{eye}"
-        else:
-            raise ValueError("Pupil topic requires an eye index of 0 or 1.")
     # Making the dataset name out of nonempty string parts
     dataset_name_list = [part for part in [topic, eye_str, method] if part]
     return "_".join(dataset_name_list)
