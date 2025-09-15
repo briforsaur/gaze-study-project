@@ -15,6 +15,24 @@ _cm = 1 / 2.54
 def plot_raw_pupil_diameter_comparison(
     participant_data: RawParticipantDataType,
 ) -> mpl_fig:
+    """Plot normalized diameter vs time for all trials split by eye and task type
+
+    Produces a figure with a 2x2 grid of subplots showing pupil diameter normalized to
+    the first 1 second of data for each trial versus time. The left and right columns
+    show the results for eyes 0 (participant's right) and 1 (participant's left), 
+    respectively, while the top and bottom rows show the results for action and
+    observation tasks, respectively.
+
+    Parameters
+    ----------
+    participant_data: :py:type:`pupiltools.aliases.RawParticipantDataType`
+        A list of trials with metadata and data.
+        
+    Returns
+    -------
+    matplotlib.Figure
+        Handle to the created figure.
+    """
     fig = plt.figure(figsize=(15, 10))
     subfigs = fig.subfigures(1, 2)
     fig.suptitle("Comparison of Relative Pupil Diameter Change from Baseline")
