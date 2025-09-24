@@ -19,6 +19,10 @@ Arm and Hand Motor Intent Detection," *2025 International Conference On Rehabili
 Robotics (ICORR)*, Chicago, IL, USA, 2025, pp. 1382-1387, doi: 
 [10.1109/ICORR66766.2025.11063027](https://doi.org/10.1109/ICORR66766.2025.11063027).
 
+**Associated Dataset**: 
+Forbrigger, Shane, 2025, "Eye Tracking and Pupillometry for Motor Intent Detection",
+https://doi.org/10.5683/SP3/SET9FR, Borealis.
+
 ## Introduction
 The purpose of this study is to learn about the differences between eye movements and 
 changes in pupil size when picking up objects versus observing objects. We collected
