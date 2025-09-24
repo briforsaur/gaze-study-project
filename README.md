@@ -44,6 +44,9 @@ Navigate your terminal to the project root directory. I recommend creating a vir
 environment with `venv` or `conda` to keep the installed packages separate from your
 main Python distrobution.
 
+The code was written and testing using Python 3.11, so it is guaranteed to work with
+that version but may also work fine with later versions.
+
 If you only want to work on the pupiltools package, install using `pip` in editable
 mode:
 
@@ -159,3 +162,36 @@ options:
   --confidence_threshold CONFIDENCE_THRESHOLD
                         Eye tracker confidence value below which data is discarded.
 ```
+
+## Building the pupiltools package
+The ``pupiltools`` package can be built into a wheel (``whl``) file if you want a
+compact, easy way to install it in other projects without needing it to be editable.
+
+Ensure that the latest version of the python package ``build`` is installed:
+```
+python -m pip install --upgrade build
+```
+
+Then, from the project root directory (where the ``pyproject.toml`` file is located),
+run the following command:
+```
+python -m build
+```
+
+A new folder, ``/dist``, will be created in the project root. In that folder there will
+be two files: ``pupiltools-x.y-py3-none-any.whl`` and ``pupiltools-x.y.tar.gz``, where 
+``x.y`` is replaced by the actual version number. The ``.whl`` file is the
+wheel file, a pre-built, ready-to-install version of the package, and the ``.tar.gz`` 
+file is a compressed archive of the source code.
+
+You can now install pupiltools in any other project, with its dependencies automatically
+installed as well, by running:
+```
+python -m pip install [path-to-project-root]/dist/pupiltools-x.y-py3-none-any.whl
+```
+(remember to replace ``x.y`` with the actual version number in the filename).
+
+In theory, because the package is written in pure Python and it makes no filesystem
+assumptions, the wheel should be compatible with any Python version equal to or later
+than 3.11 and any operating system. However, it has only been tested on Windows 11 with
+Python 3.11.
