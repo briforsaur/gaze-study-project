@@ -86,3 +86,72 @@ run
 ```
 sphinx-build -aE ./docs/source/ ./docs/build
 ```
+
+### Using the scripts
+Each script in the ``/scripts`` folder performs a single task in a data processing/
+analysis pipeline. The order of operation of the scripts is:
+
+0. ``split_session_log_fix_script.py`` - One of the experiment sessions was interrupted
+so the data and metadata was split between multiple folders. This script was used to 
+merge the data into a single folder with consistent metadata, making the data appear 
+like it was never split.
+1. ``export_script.py`` - take raw participant recordings made by Pupil Capture and
+export them to HDF. One HDF file per participant. The resulting HDF files are the data 
+made available in the Borealis repository.
+    * ``time_difference_script.py`` - produce a histogram of time intervals between
+    samples for a single participant.
+    * ``max_diameter_script.py`` - produce a histogram of maximum pupil diameter
+    separated by task type for all participants, with the diameter value of maximum 
+    class separation labelled.
+2. ``resample_script.py`` - take HDF files from the previous step and resample the data
+to a constant sample rate (original data has a variable sample rate). Produces one
+HDF file per participant.
+    * ``instruction_time_scripy.py`` - produce a histogram of timestamps for when
+    instructions were delivered to each participant in every trial, separated by task
+    type.
+    * ``pupil_stats_script.py`` - produce pupil diameter trendlines and max diameter
+    histogram for a single participant.
+3. ``processing_script.py`` - take the HDF files with resampled data, remove data below
+the minimum confidence threshold, linearly interpolate the removed data, and normalize
+the pupil diameter measurements. Produces one HDF file containing all participant
+data.
+    * ``saccades_script.py`` - Deprecated, originally the ``processing_script.py``
+    applied a low-pass filter to the data but this was found to be unnecessary. This 
+    script was used to create plots that compared the filtered vs unfiltered data to 
+    determine if filtering was necessary.
+4. ``extract_features_script.py`` or ``extract_timeseries_script.py`` - Extract data
+from the processed participant data into a numpy arrays conducive to neural network 
+input (including labels). The features script calculates four statistics per eye per 
+task to serve as neural net input (this is what was used in the conference paper) while
+the timeseries script extracts the full timeseries for selected variables.
+    * ``conference_paper/plot_features.py`` - produce the feature histogram plots
+    (Fig. 3 in the conference paper).
+    * ``plotting.py`` - produce the pupil diameter trendline plots (Fig. 2 in the
+    conference paper).
+5. ``classification_script.py`` - Train and test a neural network on data from step 4 
+and save the results.
+6. ``results_script.py`` - Produce confusion matrices and score histograms (Fig. 4 and
+5 in the paper) and calculate the accuracy and F1-score statistics.
+
+All scripts require command line arguments. Help information for each script can be 
+displayed using the following command with the virtual environment active:
+
+```
+python [script_name] -h
+```
+
+For example:
+```
+> python .\scripts\processing_script.py -h
+usage: processing_script.py [-h] [--confidence_threshold CONFIDENCE_THRESHOLD] data_path export_path filter_config_file
+
+positional arguments:
+  data_path             Path to directory containing the HDF files.
+  export_path           Path to directory to save the processed data.
+  filter_config_file    Path to YAML file with filter configurations for each variable to be filtered.
+
+options:
+  -h, --help            show this help message and exit
+  --confidence_threshold CONFIDENCE_THRESHOLD
+                        Eye tracker confidence value below which data is discarded.
+```
