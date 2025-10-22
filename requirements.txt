@@ -2,3 +2,4 @@
 matplotlib
 numpy
 pyyaml
+opencv-python

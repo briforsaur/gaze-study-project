@@ -16,6 +16,7 @@ dependencies = [
     "matplotlib",
     "scipy",
     "scikit-learn",
+    "pyzmq",
 ]
 dynamic = ["version"]
 
