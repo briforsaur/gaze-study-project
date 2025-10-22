@@ -1,6 +1,6 @@
 # Script based on https://github.com/pupil-labs/pupil-helpers/blob/master/python/recv_world_video_frames_with_visualization.py
 from argparse import ArgumentParser, Namespace
-import cv2
+import cv2 as cv
 import numpy as np
 
 from pupiltools.realtime import PupilNetworkVideoHandler
@@ -37,8 +37,8 @@ def main(pupil_ip: str=_DEFAULT_PUPIL_IP, pupil_port: str=_DEFAULT_PUPIL_PORT):
         if all(subtopic in frames.keys() for subtopic in pupil_net_handler.subtopics):
             # All 3 cameras have delivered an image
             for label, image_array in frames.items():
-                cv2.imshow(label, image_array)
-        if cv2.waitKey(1) == ord('q'):
+                cv.imshow(label, image_array)
+        if cv.waitKey(1) == ord('q'):
             break
 
 
@@ -49,4 +49,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     finally:
-        cv2.destroyAllWindows()
+        cv.destroyAllWindows()
