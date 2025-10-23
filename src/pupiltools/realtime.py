@@ -2,6 +2,8 @@ from msgpack import unpackb, packb
 import zmq
 import numpy as np
 
+from .data_structures import GazeData
+
 
 _DEFAULT_FRAME_FORMAT = "bgr"
 _DEFAULT_FRAME_SUBTOPICS = ["world", "eye.0", "eye.1"]
@@ -22,6 +24,7 @@ class PupilNetworkVideoHandler:
         self._sub.connect(f"tcp://{pupil_ip}:{sub_port}")
         # Set subscription topic
         self._sub.setsockopt_string(zmq.SUBSCRIBE, "frame.")
+        self._sub.setsockopt_string(zmq.SUBSCRIBE, "gaze.")
         # Tell the Pupil Network API the desired frame format
         notification = {
             "subject": "frame_publishing.set_format",
@@ -49,17 +52,22 @@ class PupilNetworkVideoHandler:
     def has_new_data_available(self):
         return self._sub.get(zmq.EVENTS) & zmq.POLLIN # type: ignore
     
-    def get_latest_frames(self) -> dict[str, np.ndarray]:
+    def get_latest_frames(self) -> tuple[dict[str, np.ndarray], GazeData | None]:
         frames: dict[str, np.ndarray] = {}
+        gaze_data = None
         while self.has_new_data_available():
             # Continue collecting frames from the buffer until none are left
             topic, payload = self.recv_from_sub()
             main_topic, subtopic = topic.split(".", maxsplit=1)
-            if main_topic == "frame" and payload["format"] != _DEFAULT_FRAME_FORMAT:
-                print(f"different frame format ({payload['format']}), skipping frame from {topic}.")
-            elif main_topic == "frame" and subtopic in self.subtopics:
-                latest_frame = np.frombuffer(payload["__raw_data__"][0], dtype=np.uint8)
-                # Frame arrives as 1-D array, needs to be reshaped to H, W, and BGR channels
-                latest_frame = latest_frame.reshape(payload["height"], payload["width"], 3)
-                frames[subtopic] = latest_frame
-        return frames
+            match main_topic:
+                case "frame":
+                    if payload["format"] != _DEFAULT_FRAME_FORMAT:
+                        print(f"different frame format ({payload['format']}), skipping frame from {topic}.")
+                    elif subtopic in self.subtopics:
+                        latest_frame = np.frombuffer(payload["__raw_data__"][0], dtype=np.uint8)
+                        # Frame arrives as 1-D array, needs to be reshaped to H, W, and BGR channels
+                        latest_frame = latest_frame.reshape(payload["height"], payload["width"], 3)
+                        frames[subtopic] = latest_frame
+                case "gaze":
+                    gaze_data = GazeData(**payload)
+        return frames, gaze_data
