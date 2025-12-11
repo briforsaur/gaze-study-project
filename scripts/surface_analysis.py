@@ -47,16 +47,16 @@ def main(data_file_path: Path, out_file_path: Path = _DEFAULT_OUTFILE_PATH) -> N
         ax.annotate(
             f"{t_label}", tuple(gaze_positions[label_idx, 1:]), backgroundcolor="w"
         )
-    ax.axis("equal")
-    ax.set_xlim(-75, 225)
-    ax.set_ylim(-100, 300)
-    fig.savefig(out_file_path, bbox_inches="tight")
     # Adding a rectangle to show the surface region
     ax.add_patch(
         Rectangle(
             (0, 0), *SURFACE_DIMENSIONS, edgecolor="k", linestyle="-", facecolor="none"
         )
     )
+    ax.axis("equal")
+    ax.set_xlim(-75, 225)
+    ax.set_ylim(-100, 300)
+    fig.savefig(out_file_path, bbox_inches="tight")
     plt.show()
 
 
