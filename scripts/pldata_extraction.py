@@ -5,13 +5,17 @@ from pathlib import Path
 from statistics import mean, pstdev
 
 
+_DEFAULT_OUTFILE_PATH = Path("./data.json")
+
+
 def _get_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("data_file_path", type=Path, help="Path to a PLDATA file.")
+    parser.add_argument("out_file_path", type=Path, default=_DEFAULT_OUTFILE_PATH, help="Path to output JSON file.")
     return parser.parse_args()
 
 
-def main(data_file_path: Path) -> None:
+def main(data_file_path: Path, out_file_path: Path = _DEFAULT_OUTFILE_PATH) -> None:
     with open(data_file_path, "rb") as data_file:
         unpacker = mpk.Unpacker(data_file, use_list=False)
         msg_topic: str
@@ -29,7 +33,7 @@ def main(data_file_path: Path) -> None:
                 t0 = data["gaze_on_surfaces"][0]["timestamp"]
                 tf = data["gaze_on_surfaces"][-1]["timestamp"]
                 duration_list.append(tf - t0)
-    with open("./surface_data.json", "w") as f:
+    with open(out_file_path, "w") as f:
         json.dump(data_list, f, indent=2)
     assert float("NaN") not in duration_list
     print(f"Message duration mean: {mean(duration_list)}")
