@@ -1,6 +1,8 @@
 .vscode/
 
+# Folders for temporary code and data
 sandbox/
+temp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
