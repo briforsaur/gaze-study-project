@@ -56,6 +56,9 @@ def main(data_file_path: Path, out_file_path: Path = _DEFAULT_OUTFILE_PATH) -> N
     ax.axis("equal")
     ax.set_xlim(-75, 225)
     ax.set_ylim(-100, 300)
+    ax.set_xlabel("X Position [mm]")
+    ax.set_ylabel("Y Position [mm]")
+    ax.set_title("Gaze Position Relative to Surface")
     fig.savefig(out_file_path, bbox_inches="tight")
     plt.show()
 
