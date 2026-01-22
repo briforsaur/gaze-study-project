@@ -31,8 +31,8 @@ def _get_args() -> Namespace:
 
 def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_PORT):
     """Quit by typing 'q'"""
-    pupil_net_handler = PupilNetworkHandler(pupil_ip, pupil_port, ["frame.world", "gaze"])
-    print(pupil_net_handler.subtopics)
+    topics = ["gaze", "frame.world"]
+    pupil_net_handler = PupilNetworkHandler(pupil_ip, pupil_port, topics)
     frames: dict[str, NDArray[np.uint8]] = {}
     print(
         "To stop the script, press 'q' while one of the video windows is selected,",
@@ -55,11 +55,9 @@ def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_POR
                     gaze_data = GazeData(**data)
                     t = data["timestamp"]
         frames.update(latest_frames)
-        if all(subtopic in frames.keys() for subtopic in pupil_net_handler.subtopics):
-            # All 3 cameras have delivered an image
-            if gaze_data is not None:
-                norm_gaze_pos = astuple(gaze_data.norm_pos)
-            display_camera_frames(frames, norm_gaze_pos)
+        if gaze_data is not None:
+            norm_gaze_pos = astuple(gaze_data.norm_pos)
+        display_camera_frames(frames, norm_gaze_pos)
         if cv.waitKey(1) == ord("q"):
             break
 
@@ -89,7 +87,7 @@ def display_camera_frames(
         image_array = np.copy(image_array)
         if label == "world":
             image_dims = image_array.shape[:2]
-            xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims)
+            xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims) #type:ignore
             annotate_world_frame(image_array, xy_pos)
         elif label == "eye.0":
             rotate_image(image_array)

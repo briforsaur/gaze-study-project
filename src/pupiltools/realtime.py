@@ -4,17 +4,11 @@ import zmq
 
 
 _DEFAULT_FRAME_FORMAT = "bgr"
-_DEFAULT_FRAME_SUBTOPICS = ["world", "eye.0", "eye.1"]
-_DEFAULT_TOPICS = ["gaze", "frame"]
 
 
 class PupilNetworkHandler:
 
-    def __init__(self, pupil_ip: str, pupil_port: str, topics: list[str] = _DEFAULT_TOPICS) -> None:
-        self.subtopics = [topic.removeprefix("frame.") for topic in topics if "frame" in topic]
-        # TODO: Fix default case of subtopics when only "frame" is in topics
-        if not self.subtopics and "frame" in topics:
-            self.subtopics = _DEFAULT_FRAME_SUBTOPICS
+    def __init__(self, pupil_ip: str, pupil_port: str, topics: list[str]) -> None:
         context = zmq.Context()
         # Open requests port
         self._req = context.socket(zmq.REQ)
