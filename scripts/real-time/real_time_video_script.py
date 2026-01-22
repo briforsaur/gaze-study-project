@@ -31,7 +31,7 @@ def _get_args() -> Namespace:
 
 def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_PORT):
     """Quit by typing 'q'"""
-    topics = ["gaze", "frame.world"]
+    topics = ["gaze", "frame.world", "surfaces"]
     pupil_net_handler = PupilNetworkHandler(pupil_ip, pupil_port, topics)
     frames: dict[str, NDArray[np.uint8]] = {}
     print(
@@ -39,6 +39,7 @@ def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_POR
         "or type CTRL+C in the terminal window.",
     )
     norm_gaze_pos = (0.0, 0.0)
+    surface_to_img_homography = None
     while True:
         latest_data = pupil_net_handler.get_latest_data()
         # Create dict of frames where the keys are the subtopics
@@ -54,10 +55,18 @@ def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_POR
                 if data["timestamp"] > t:
                     gaze_data = GazeData(**data)
                     t = data["timestamp"]
+        latest_surfaces = {
+            topic.removeprefix("surfaces."): payload # type: ignore
+            for topic, payload in latest_data.items() if "surfaces" in topic
+        }
+        if latest_surfaces is not None:
+            surface = latest_surfaces.get("Surface 1")
+            if surface is not None:
+                surface_to_img_homography = surface.get("surf_to_img_trans")
         frames.update(latest_frames)
         if gaze_data is not None:
             norm_gaze_pos = astuple(gaze_data.norm_pos)
-        display_camera_frames(frames, norm_gaze_pos)
+        display_camera_frames(frames, norm_gaze_pos, surface_to_img_homography)
         if cv.waitKey(1) == ord("q"):
             break
 
@@ -79,7 +88,7 @@ def image_array_from(frame_payload: FramePayload):
 
 
 def display_camera_frames(
-    frames: dict[str, NDArray[np.uint8]], norm_gaze_pos: tuple[float, float]
+    frames: dict[str, NDArray[np.uint8]], norm_gaze_pos: tuple[float, float], surface_to_img_homography: list[list[float]] | None
 ):
     """Display camera frames in separate, labelled windows with gaze annotations"""
     for label, image_array in frames.items():
@@ -89,6 +98,8 @@ def display_camera_frames(
             image_dims = image_array.shape[:2]
             xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims) #type:ignore
             annotate_world_frame(image_array, xy_pos)
+            if surface_to_img_homography is not None:
+                draw_surface_bounding_box(image_array, surface_to_img_homography)
         elif label == "eye.0":
             rotate_image(image_array)
         cv.imshow(label, image_array)
@@ -99,8 +110,25 @@ def annotate_world_frame(image_array: NDArray[np.uint8], gaze_coords: NDArray[np
     xy_pos_str = f"[{gaze_coords[0]:4d}, {gaze_coords[1]:4d}]"
     cv.circle(image_array, tuple(gaze_coords), 25, (0, 0, 255), 2)
     cv.putText(
-        image_array, xy_pos_str, (0, 50), _CV_FONT, 1, (255, 255, 255), 3, cv.LINE_AA
+        image_array, xy_pos_str, (0, 50), _CV_FONT, 1, (0, 0, 255), 3, cv.LINE_AA
     )
+
+
+def draw_surface_bounding_box(image_array: NDArray[np.uint8], surface_to_img_homography: list[list[float]]):
+    homography_matrix = np.array(surface_to_img_homography)
+    surface_points = np.array([[0., 0., 1., 1.], [0., 1., 0., 1.], [1., 1., 1., 1.]])
+    points_in_frame = homography_matrix @ surface_points
+    #points_in_frame = points_in_frame/points_in_frame[2]
+    points_in_frame = points_in_frame.astype(int)
+    for i in range(points_in_frame.shape[1]):
+        point = tuple(points_in_frame[:2, i])
+        colour = (255,int(255*(3-i)/3),0)
+        cv.circle(image_array, point, 10, colour, 2)
+        xy_pos_str = f"[{point[0]:4d}, {point[1]:4d}]"
+        cv.putText(
+           image_array, xy_pos_str, (0, 100 + 50*i), _CV_FONT, 1, colour, 3, cv.LINE_AA
+        )
+    
 
 
 def gaze_position_to_cv_frame(
