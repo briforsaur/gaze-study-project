@@ -64,7 +64,7 @@ def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_POR
         if latest_surfaces is not None:
             surface = latest_surfaces.get("Surface 1")
             if surface is not None:
-                surface_to_img_homography = surface.get("surf_to_img_trans")
+                surface_to_img_homography = surface.get("surf_to_dist_img_trans")
         frames.update(latest_frames)
         if gaze_data is not None:
             norm_gaze_pos = astuple(gaze_data.norm_pos)
