@@ -123,13 +123,11 @@ def draw_surface_bounding_box(
 ):
     homography_matrix = np.array(surface_to_img_homography)
     surface_points = np.array(
-        [[0.0, 0.0, 1.0, 1.0], [0.0, 1.0, 0.0, 1.0], [1.0, 1.0, 1.0, 1.0]]
+        [[[0, 0], [1, 0], [1, 1], [0, 1]]], dtype=np.float32
     )
-    points_in_frame = homography_matrix @ surface_points
-    # points_in_frame = points_in_frame/points_in_frame[2]
-    points_in_frame = points_in_frame.astype(int)
-    for i in range(points_in_frame.shape[1]):
-        point = tuple(points_in_frame[:2, i])
+    image_points = cv.perspectiveTransform(surface_points, homography_matrix)
+    for i in range(surface_points.shape[1]):
+        point = tuple(image_points[0, i, :2].astype(int))
         colour = (255, int(255 * (3 - i) / 3), 0)
         text_position = (0, 100 + 50 * i)
         cv.circle(image_array, point, 10, colour, 2)
