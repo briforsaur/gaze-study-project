@@ -22,7 +22,7 @@ class PupilNetworkHandler:
         # Tell the Pupil Network API the desired frame format
         notification = {
             "subject": "frame_publishing.set_format",
-            "format": _DEFAULT_FRAME_FORMAT
+            "format": _DEFAULT_FRAME_FORMAT,
         }
         self._notify(notification)
 
@@ -40,7 +40,7 @@ class PupilNetworkHandler:
         self._req.send_string(topic, flags=zmq.SNDMORE)
         self._req.send(payload)
         return self._req.recv_string()
-    
+
     def _recv_from_sub(self) -> tuple[str, dict[str, Any]]:
         topic = self._sub.recv_string()
         payload = unpackb(self._sub.recv(), raw=False)
@@ -50,14 +50,14 @@ class PupilNetworkHandler:
         if extra_frames:
             payload["__raw_data__"] = extra_frames
         return topic, payload
-    
+
     def _has_new_data_available(self):
-        return self._sub.get(zmq.EVENTS) & zmq.POLLIN # type: ignore
-    
+        return self._sub.get(zmq.EVENTS) & zmq.POLLIN  # type: ignore
+
     def get_latest_data(self) -> dict[str, dict[str, Any]]:
         latest_data: dict[str, dict[str, Any]] = {}
         while self._has_new_data_available():
             # Continue collecting data from the buffer until none are left
-            topic, payload = self._recv_from_sub() 
+            topic, payload = self._recv_from_sub()
             latest_data.update({topic: payload})
         return latest_data

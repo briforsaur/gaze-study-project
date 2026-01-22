@@ -44,8 +44,9 @@ def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_POR
         latest_data = pupil_net_handler.get_latest_data()
         # Create dict of frames where the keys are the subtopics
         latest_frames = {
-            topic.removeprefix("frame."): image_array_from(payload) # type: ignore
-            for topic, payload in latest_data.items() if "frame" in topic
+            topic.removeprefix("frame."): image_array_from(payload)  # type: ignore
+            for topic, payload in latest_data.items()
+            if "frame" in topic
         }
         gaze_data = None
         t = 0
@@ -56,8 +57,9 @@ def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_POR
                     gaze_data = GazeData(**data)
                     t = data["timestamp"]
         latest_surfaces = {
-            topic.removeprefix("surfaces."): payload # type: ignore
-            for topic, payload in latest_data.items() if "surfaces" in topic
+            topic.removeprefix("surfaces."): payload  # type: ignore
+            for topic, payload in latest_data.items()
+            if "surfaces" in topic
         }
         if latest_surfaces is not None:
             surface = latest_surfaces.get("Surface 1")
@@ -79,7 +81,7 @@ class FramePayload(TypedDict):
     timestamp: float
     format: str
     __raw_data__: list[bytes]
-    
+
 
 def image_array_from(frame_payload: FramePayload):
     img_array = np.frombuffer(frame_payload["__raw_data__"][0], dtype=np.uint8)
@@ -88,7 +90,9 @@ def image_array_from(frame_payload: FramePayload):
 
 
 def display_camera_frames(
-    frames: dict[str, NDArray[np.uint8]], norm_gaze_pos: tuple[float, float], surface_to_img_homography: list[list[float]] | None
+    frames: dict[str, NDArray[np.uint8]],
+    norm_gaze_pos: tuple[float, float],
+    surface_to_img_homography: list[list[float]] | None,
 ):
     """Display camera frames in separate, labelled windows with gaze annotations"""
     for label, image_array in frames.items():
@@ -96,7 +100,7 @@ def display_camera_frames(
         image_array = np.copy(image_array)
         if label == "world":
             image_dims = image_array.shape[:2]
-            xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims) #type:ignore
+            xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims)  # type:ignore
             annotate_world_frame(image_array, xy_pos)
             if surface_to_img_homography is not None:
                 draw_surface_bounding_box(image_array, surface_to_img_homography)
@@ -114,21 +118,32 @@ def annotate_world_frame(image_array: NDArray[np.uint8], gaze_coords: NDArray[np
     )
 
 
-def draw_surface_bounding_box(image_array: NDArray[np.uint8], surface_to_img_homography: list[list[float]]):
+def draw_surface_bounding_box(
+    image_array: NDArray[np.uint8], surface_to_img_homography: list[list[float]]
+):
     homography_matrix = np.array(surface_to_img_homography)
-    surface_points = np.array([[0., 0., 1., 1.], [0., 1., 0., 1.], [1., 1., 1., 1.]])
+    surface_points = np.array(
+        [[0.0, 0.0, 1.0, 1.0], [0.0, 1.0, 0.0, 1.0], [1.0, 1.0, 1.0, 1.0]]
+    )
     points_in_frame = homography_matrix @ surface_points
-    #points_in_frame = points_in_frame/points_in_frame[2]
+    # points_in_frame = points_in_frame/points_in_frame[2]
     points_in_frame = points_in_frame.astype(int)
     for i in range(points_in_frame.shape[1]):
         point = tuple(points_in_frame[:2, i])
-        colour = (255,int(255*(3-i)/3),0)
+        colour = (255, int(255 * (3 - i) / 3), 0)
+        text_position = (0, 100 + 50 * i)
         cv.circle(image_array, point, 10, colour, 2)
         xy_pos_str = f"[{point[0]:4d}, {point[1]:4d}]"
         cv.putText(
-           image_array, xy_pos_str, (0, 100 + 50*i), _CV_FONT, 1, colour, 3, cv.LINE_AA
+            image_array,
+            xy_pos_str,
+            text_position,
+            _CV_FONT,
+            1,
+            colour,
+            3,
+            cv.LINE_AA,
         )
-    
 
 
 def gaze_position_to_cv_frame(
