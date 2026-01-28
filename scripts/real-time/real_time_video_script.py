@@ -1,5 +1,6 @@
 from argparse import ArgumentParser, Namespace
 import cv2 as cv
+from itertools import pairwise
 import numpy as np
 from numpy.typing import NDArray
 from typing import TypedDict
@@ -122,9 +123,11 @@ def draw_surface_bounding_box(
     image_array: NDArray[np.uint8], surface_to_img_homography: list[list[float]]
 ):
     homography_matrix = np.array(surface_to_img_homography)
-    surface_points = np.array(
-        [[[0, 0], [1, 0], [1, 1], [0, 1]]], dtype=np.float32
-    )
+    corner_points = [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]
+    surface_point_ranges = [
+        np.linspace([start], [end], num=11, axis=1)[:,:-1,:] for start, end in pairwise(corner_points)
+    ]
+    surface_points = np.concatenate(surface_point_ranges, axis=1)
     image_points = cv.perspectiveTransform(surface_points, homography_matrix)
     n_points = surface_points.shape[1]
     for i in range(n_points):
@@ -132,22 +135,8 @@ def draw_surface_bounding_box(
             tuple(image_points[0, i, :2].astype(int)),
             tuple(image_points[0, (i+1) % n_points, :2].astype(int)),
         )
-        point_colour = (255, int(255 * (3 - i) / 3), 0)
         line_colour = (255, 0, 0) # Blue
-        text_position = (0, 100 + 50 * i)
         cv.line(image_array, points[0], points[1], line_colour, 1)
-        cv.circle(image_array, points[0], 10, point_colour, 2)
-        xy_pos_str = f"[{points[0][0]:4d}, {points[0][1]:4d}]"
-        cv.putText(
-            image_array,
-            xy_pos_str,
-            text_position,
-            _CV_FONT,
-            1,
-            point_colour,
-            3,
-            cv.LINE_AA,
-        )
 
 
 def gaze_position_to_cv_frame(
