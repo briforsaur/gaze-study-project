@@ -126,19 +126,25 @@ def draw_surface_bounding_box(
         [[[0, 0], [1, 0], [1, 1], [0, 1]]], dtype=np.float32
     )
     image_points = cv.perspectiveTransform(surface_points, homography_matrix)
-    for i in range(surface_points.shape[1]):
-        point = tuple(image_points[0, i, :2].astype(int))
-        colour = (255, int(255 * (3 - i) / 3), 0)
+    n_points = surface_points.shape[1]
+    for i in range(n_points):
+        points = (
+            tuple(image_points[0, i, :2].astype(int)),
+            tuple(image_points[0, (i+1) % n_points, :2].astype(int)),
+        )
+        point_colour = (255, int(255 * (3 - i) / 3), 0)
+        line_colour = (255, 0, 0) # Blue
         text_position = (0, 100 + 50 * i)
-        cv.circle(image_array, point, 10, colour, 2)
-        xy_pos_str = f"[{point[0]:4d}, {point[1]:4d}]"
+        cv.line(image_array, points[0], points[1], line_colour, 1)
+        cv.circle(image_array, points[0], 10, point_colour, 2)
+        xy_pos_str = f"[{points[0][0]:4d}, {points[0][1]:4d}]"
         cv.putText(
             image_array,
             xy_pos_str,
             text_position,
             _CV_FONT,
             1,
-            colour,
+            point_colour,
             3,
             cv.LINE_AA,
         )
