@@ -9,7 +9,6 @@ from dataclasses import astuple
 from pupiltools.data_structures import GazeData
 from pupiltools.realtime import PupilNetworkHandler
 
-
 _DEFAULT_PUPIL_IP = "127.0.0.1"
 _DEFAULT_PUPIL_PORT = "50020"
 _CV_FONT = cv.FONT_HERSHEY_SIMPLEX
@@ -101,7 +100,7 @@ def display_camera_frames(
         image_array = np.copy(image_array)
         if label == "world":
             image_dims = image_array.shape[:2]
-            xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims)  # type:ignore
+            xy_pos = gaze_position_to_cv_frame(norm_gaze_pos, image_dims)  # type: ignore
             annotate_world_frame(image_array, xy_pos)
             if surface_to_img_homography is not None:
                 draw_surface_bounding_box(image_array, surface_to_img_homography)
@@ -124,18 +123,25 @@ def draw_surface_bounding_box(
 ):
     homography_matrix = np.array(surface_to_img_homography)
     corner_points = [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]
+    # Get a range of points between each corner to show the true bounding box
+    # Due to camera distortion, the border isn't necessarily a straight line b/t corners
     surface_point_ranges = [
-        np.linspace([start], [end], num=11, axis=1)[:,:-1,:] for start, end in pairwise(corner_points)
+        np.linspace([start], [end], num=11, axis=1)[
+            :, :-1, :
+        ]  # Skip the last point because it is included in the next range
+        for start, end in pairwise(corner_points)
     ]
     surface_points = np.concatenate(surface_point_ranges, axis=1)
     image_points = cv.perspectiveTransform(surface_points, homography_matrix)
     n_points = surface_points.shape[1]
     for i in range(n_points):
+        # Get the current and next x,y point, dropping the 3rd element artefact from the
+        # homographic transformation
         points = (
             tuple(image_points[0, i, :2].astype(int)),
-            tuple(image_points[0, (i+1) % n_points, :2].astype(int)),
+            tuple(image_points[0, (i + 1) % n_points, :2].astype(int)),
         )
-        line_colour = (255, 0, 0) # Blue
+        line_colour = (255, 0, 0)  # Blue
         cv.line(image_array, points[0], points[1], line_colour, 1)
 
 
