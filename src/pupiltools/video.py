@@ -21,7 +21,27 @@ class FramePayload(TypedDict):
     __raw_data__: list[bytes]
 
 
-def image_array_from(frame_payload: FramePayload):
+def image_array_from(frame_payload: FramePayload) -> np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]:
+    """Convert a raw Pupil Core frame payload to a numpy array
+    
+    Parameters
+    ----------
+    frame_payload: FramePayload
+        A dictionary representing a raw frame payload transmitted by the Pupil Core. It
+        must contain an integer 'height' entry, an integer 'width' entry, and a 
+        '__raw_data__' entry containing a list of bytes. Each entry in the list is a 
+        single frame represented in bytes. Only the first list entry is converted.
+    
+    Returns
+    -------
+    numpy.ndarray[tuple[int, int, int], numpy.uint8]
+        A numpy array representing an image in Height-Width-Colour, where the colour
+        format is 8-bit Blue-Green-Red (BGR). In other words, a 3-dimensional array 
+        where the first dimension is the image height, the second dimension is the image
+        width and the third dimension is the colour channels. So output[2, 4, 0] is the
+        blue channel value of the pixel at position 2 along the H axis and 4 along the W
+        axis.
+    """
     img_array = np.frombuffer(frame_payload["__raw_data__"][0], dtype=np.uint8)
     # Frame arrives as 1-D array, needs to be reshaped to H, W, and BGR channels
     return img_array.reshape(frame_payload["height"], frame_payload["width"], 3)
