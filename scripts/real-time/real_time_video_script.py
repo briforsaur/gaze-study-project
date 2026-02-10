@@ -30,7 +30,11 @@ def _get_args() -> Namespace:
 def main(pupil_ip: str = _DEFAULT_PUPIL_IP, pupil_port: str = _DEFAULT_PUPIL_PORT):
     """Quit by typing 'q'"""
     topics = ["gaze", "frame.world", "surfaces"]
+    # Sometimes the user forgets to start Pupil Capture before starting the script
+    print("Waiting for Pupil connection. Has Pupil Capture started?", end="")
     pupil_net_handler = PupilNetworkHandler(pupil_ip, pupil_port, topics)
+    # Clear previous console output and print that the connection was successful
+    print("\x1b[1K\rPupil connection established.")
     frames: dict[str, NDArray[np.uint8]] = {}
     print(
         "To stop the script, press 'q' while one of the video windows is selected,",
