@@ -61,6 +61,16 @@ file:
 python -m pip install -r requirements.txt
 ```
 
+If you want to run the object detection scripts, first install pytorch according to the
+instructions at https://pytorch.org/get-started/locally/. This is especially important
+if your system has a CUDA-capable GPU, as it can speed up the object recognition over 3x
+compared to CPU-only. After pytorch is installed, install the ultralytics package via
+pip. An example command that will install pytorch for CUDA 12.8 on Windows followed by
+ultralytics:
+```
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128 && python -m pip install ultralytics
+```
+
 The package included with this project is named `pupiltools`. See the scripts in the
 `/scripts` folder for examples of use.
 
